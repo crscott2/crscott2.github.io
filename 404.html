@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GSB" />
+  <meta name="theme-color" content="#0b1c33" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
+  <title>GSB</title>
+  <meta name="gsb-build" content="4" />
+  <style>
+    :root { color-scheme: dark; --navy:#0b1c33; --navy2:#12263f; --cream:#f3e6c8; --cream2:#e8d5a8; --brass:#c4a35a; --brass-dk:#8a6a2f; --ink:#1a1408; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: radial-gradient(1200px 600px at 50% -10%, #163153 0%, var(--navy) 55%);
+      color: var(--cream);
+      font-family: "Source Serif 4", Palatino, Georgia, "Times New Roman", serif;
+    }
+    body { min-height: 100dvh; padding: calc(12px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); }
+    h1 {
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      font-size: 22px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--cream); margin: 0 0 2px;
+      text-shadow: 0 1px 0 #000;
+    }
+    .place { font-size: 14px; color: var(--cream2); margin-bottom: 14px; letter-spacing: .04em; }
+    .card {
+      background: linear-gradient(180deg, #152a48 0%, var(--navy2) 100%);
+      border: 2px solid var(--brass);
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 1px #6e5420, 0 6px 14px rgba(0,0,0,.35);
+      padding: 14px 14px 12px;
+      margin-bottom: 12px;
+    }
+    .label {
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--brass); margin-bottom: 8px;
+    }
+    .big { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: .02em; color: #fff8e8; }
+    .unit { font-size: 22px; font-weight: 600; color: var(--cream2); }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline; }
+    .sub { color: var(--cream); font-size: 18px; margin-top: 8px; }
+    .wind-dir { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 36px; font-weight: 700; letter-spacing: .06em; line-height: 1; color: #fff8e8; text-transform: uppercase; }
+    .gust { font-size: 16px; color: var(--cream2); margin-top: 6px; }
+    .muted { color: #d7c59a; font-size: 14px; }
+    .alert { background: #3a1d12; border-color: #c47a3a; color: #ffd7c2; }
+    .marine p { margin: 0 0 10px; font-size: 16px; line-height: 1.4; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; }
+    .marine p:last-child { margin: 0; }
+    .pname { color: var(--brass); font-weight: 700; font-family: Oswald, "Arial Narrow", sans-serif; letter-spacing: .06em; }
+    img.radar { width: 100%; border-radius: 2px; background: #000; display: block; border: 1px solid var(--brass-dk); }
+    button {
+      appearance: none;
+      background: linear-gradient(#d6b56a, #9a7533);
+      color: var(--ink);
+      border: 1px solid #6e5420;
+      border-radius: 4px;
+      padding: 10px 18px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+    button.share {
+      padding: 8px 12px;
+      font-size: 13px;
+      letter-spacing: .1em;
+      background: transparent;
+      color: var(--cream2);
+      border: 1px solid var(--brass-dk);
+    }
+    .hint { font-size: 13px; color: #d7c59a; line-height: 1.4; margin-top: 8px; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; }
+    .err { color: #ffb4a8; font-size: 13px; }
+    .stale { color: #ffd36a; font-weight: 700; }
+    .age { margin-top: 8px; font-size: 15px; }
+    .flow { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: .04em; }
+    .flow.with { color: #8fe0a8; }
+    .flow.against { color: #ffb087; }
+    .flow.cross { color: #ffd36a; }
+    .flow.turning, .flow.slack_high, .flow.slack_low { color: #8fe0a8; }
+    .tidechart { position: relative; }
+    .moon {
+      position: absolute; top: 6px; right: 8px;
+      font-size: 20px; line-height: 1; z-index: 2;
+      filter: drop-shadow(0 0 1px #f3e6c8);
+    }
+    .tidechart { background: #f3e6c8; border: 1px solid var(--brass-dk); border-radius: 2px; padding: 8px 6px 4px; color: var(--ink); }
+    .tidechart svg { width: 100%; height: auto; display: block; }
+    .noaa { font-size: 10px; color: #5a4a2a; text-align: right; margin-top: 2px; }
+    .stoplight-wrap { display: flex; flex-direction: column; align-items: center; margin: 4px 0 16px; }
+    .stoplight {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: linear-gradient(180deg, #4a3a22 0%, #1c140c 55%, #0e0b07 100%);
+      border: 3px solid var(--brass);
+      border-radius: 10px;
+      box-shadow: inset 0 1px 0 #d6b56a, inset 0 -8px 14px rgba(0,0,0,.55), 0 8px 18px rgba(0,0,0,.4);
+    }
+    .stoplight .lamp {
+      width: 54px; height: 54px; border-radius: 50%;
+      background: #1a140c; opacity: 0.32;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,.75), 0 0 0 2px #2a2114;
+    }
+    .stoplight.on-red .lamp.red { background: #ef4444; opacity: 1; box-shadow: 0 0 22px #ef4444, inset 0 -4px 8px rgba(0,0,0,.25); }
+    .stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 22px #eab308, inset 0 -4px 8px rgba(0,0,0,.25); }
+    .stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 22px #22c55e, inset 0 -4px 8px rgba(0,0,0,.25); }
+    .stoplight-factors { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 13px; letter-spacing: .08em; color: var(--cream2); text-align: center; margin-top: 8px; line-height: 1.35; max-width: 22rem; }
+  </style>
+</head>
+<body>
+  <h1>GSB</h1>
+  <div class="place" id="place">Great South Bay</div>
+  <div id="root">Loading…</div>
+  <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
+  <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=4");
+    const $ = (id) => document.getElementById(id);
+    const kt = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
+    const f = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
+
+    function tideChart(t) {
+      const curve = t.curve || [];
+      if (curve.length < 4) return "";
+      const W = 640, H = 280;
+      const pad = { l: 44, r: 12, t: 22, b: 36 };
+      const vs = curve.map(p => p.v);
+      let vmin = Math.min(...vs), vmax = Math.max(...vs);
+      const span = Math.max(0.4, vmax - vmin);
+      vmin -= span * 0.12; vmax += span * 0.18;
+      const x = (m) => pad.l + (m / 1440) * (W - pad.l - pad.r);
+      const y = (v) => pad.t + (1 - (v - vmin) / (vmax - vmin)) * (H - pad.t - pad.b);
+      const d = curve.map((p, i) => `${i ? "L" : "M"}${x(p.m).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+      const yTicks = [];
+      const step = vmax - vmin > 1.2 ? 0.5 : 0.25;
+      const start = Math.ceil(vmin / step) * step;
+      for (let v = start; v <= vmax + 1e-6; v += step) yTicks.push(Math.round(v * 100) / 100);
+      let grid = "";
+      yTicks.forEach(v => {
+        grid += `<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="#d7c59a" />`;
+        grid += `<text x="${pad.l-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#3a2e1a">${v.toFixed(1)}</text>`;
+      });
+      [0,240,480,720,960,1200,1440].forEach(m => {
+        const hh = String(Math.floor(m/60)%24).padStart(2,"0");
+        grid += `<line x1="${x(m)}" x2="${x(m)}" y1="${pad.t}" y2="${H-pad.b}" stroke="#ead9b0" />`;
+        grid += `<text x="${x(m)}" y="${H-14}" text-anchor="middle" font-size="11" fill="#3a2e1a">${hh}:00</text>`;
+      });
+      const nowM = Math.max(0, Math.min(1440, t.nowMin ?? 0));
+      let extrema = "";
+      (t.extremes || []).forEach(e => {
+        if (!e || !e.iso) return;
+        const dt = new Date(e.iso);
+        if (dt.toDateString() !== new Date(t.day + "T12:00:00").toDateString() && t.day) {
+          const day = t.day;
+          if (!e.iso.startsWith(day)) return;
+        }
+        const parts = e.iso.match(/T(\d{2}):(\d{2})/);
+        if (!parts) return;
+        const m = (+parts[1]) * 60 + (+parts[2]);
+        extrema += `<rect x="${x(m)-3}" y="${y(e.ft)-3}" width="6" height="6" fill="#1f4e79" />`;
+        extrema += `<text x="${x(m)}" y="${y(e.ft)-8}" text-anchor="middle" font-size="13" font-weight="700" fill="#1a1408">${e.ft.toFixed(2)}</text>`;
+      });
+      const moon = t.moon || {};
+      return `<div class="tidechart">
+        ${moon.symbol ? `<span class="moon" title="${moon.name || "Moon"}">${moon.symbol}</span>` : ""}
+        <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+          <rect width="${W}" height="${H}" fill="#f3e6c8"/>
+          ${grid}
+          <path d="${d}" fill="none" stroke="#1f4e79" stroke-width="2.4"/>
+          <line x1="${x(nowM)}" x2="${x(nowM)}" y1="${pad.t}" y2="${H-pad.b}" stroke="#2e6b45" stroke-width="2"/>
+          <text transform="translate(${x(nowM)+12},${(pad.t+H-pad.b)/2}) rotate(-90)" font-size="11" fill="#2e6b45" text-anchor="middle">Current Time</text>
+          ${extrema}
+          <text x="${pad.l}" y="14" font-size="11" fill="#3a2e1a">Height in feet (MLLW)</text>
+        </svg>
+        <div class="noaa">NOAA/NOS/CO-OPS · Patchogue 8514322</div>
+      </div>`;
+    }
+
+    async function shareNow() {
+      const d = window._gsbLast || {};
+      const b = d.buoy || {};
+      const fl = d.flow || {};
+      const sl = d.stoplight || {};
+      const windMph = (b.windMph != null) ? b.windMph : (b.windKt != null && !Number.isNaN(b.windKt) ? Math.round(b.windKt * 1.15078) : null);
+      const wind = windMph != null ? windMph + " mph" : "";
+      const dir = b.windDir || "";
+      const parts = ["GSB", [wind, dir].filter(Boolean).join(" "), fl.label, sl.color].filter(Boolean);
+      const text = parts.join(" · ");
+      const url = location.href.split("#")[0];
+      const payload = { title: "GSB", text, url };
+      try {
+        if (navigator.share) await navigator.share(payload);
+        else {
+          await navigator.clipboard.writeText(text + "\n" + url);
+          const btn = $("share");
+          if (btn) { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Share"; }, 1400); }
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+        try {
+          await navigator.clipboard.writeText(text + "\n" + url);
+          const btn = $("share");
+          if (btn) { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Share"; }, 1400); }
+        } catch (_) {}
+      }
+    }
+
+        async function load() {
+      const root = $("root");
+      try {
+        const d = await GSB.gather();
+        $("place").textContent = d.place || "Great South Bay";
+        const b = d.buoy || {};
+        const t = d.tides || {};
+        const m = d.marine || {};
+        const fl = d.flow || {};
+        const alerts = d.alerts || [];
+        const age = b.ageMin;
+        const stale = age != null && age > 45;
+        let html = "";
+        const sl = d.stoplight || {};
+        const slc = sl.color || "yellow";
+        const slfacts = (sl.factors || []).map(x => x.text).filter(Boolean).join(" · ");
+        html += `<div class="stoplight-wrap">
+          <div class="stoplight on-${slc}" role="img" aria-label="Go/no-go ${slc}">
+            <div class="lamp red"></div>
+            <div class="lamp yellow"></div>
+            <div class="lamp green"></div>
+          </div>
+          <div class="stoplight-factors">${slfacts || ""}</div>
+        </div>`;
+        if (alerts.length) {
+          html += `<div class="card alert"><div class="label">Alert</div>${alerts.map(a => `<div>${a.headline || a.event}</div>`).join("")}</div>`;
+        }
+        if (fl.label) {
+          html += `<div class="card">
+            <div class="label">Wind vs tide</div>
+            <div class="flow ${fl.verdict}">${fl.label}</div>
+            <div class="sub">${fl.tide ? fl.tide[0].toUpperCase()+fl.tide.slice(1) : ""} · water ${fl.waterMoves || ""}</div>
+            <div class="muted">${fl.detail || ""} Wind from ${fl.windFrom || "—"}.</div>
+          </div>`;
+        }
+        let ageLine = "Observation age unknown";
+        if (age != null) {
+          ageLine = "Observation " + age + " min ago" + (b.observedEt ? " · as of " + b.observedEt + " ET" : "");
+        } else if (b.observedEt) {
+          ageLine = "as of " + b.observedEt + " ET";
+        }
+        html += `<div class="card">
+          <div class="label">SoMAS Buoy</div>
+          <div class="row" style="align-items:flex-end">
+            <div class="big">${b.windMph != null ? b.windMph : kt(b.windKt != null ? b.windKt * 1.15078 : null)} <span class="unit">mph</span></div>
+            <div class="wind-dir">${b.windDir || "—"}</div>
+          </div>
+          ${(b.gustMph != null || b.gustKt != null) ? `<div class="gust">gust ${b.gustMph != null ? b.gustMph : kt(b.gustKt * 1.15078)} mph</div>` : ""}
+          <div class="sub">Air ${f(b.airF)}° · Water ${f(b.waterF)}°</div>
+          <div class="age muted ${stale ? "stale" : ""}">${stale ? "STALE · " : ""}${ageLine}</div>
+        </div>`;
+        html += `<div class="card">
+          <div class="label">Patchogue tide</div>
+          ${tideChart(t)}
+          <div class="sub">${t.state ? t.state.charAt(0).toUpperCase()+t.state.slice(1) : "—"}
+            ${t.nextHigh ? " · High " + t.nextHigh.time : ""}
+            ${t.nextLow ? " · Low " + t.nextLow.time : ""}</div>
+        </div>`;
+        const rad = d.radar || {};
+        html += `<div class="card">
+          <div class="label">${rad.label || "Radar"}</div>
+          <a href="${rad.page || rad.loop}"><img class="radar" alt="KOKX radar loop" src="${rad.loop}?t=${Date.now()}" /></a>
+        </div>`;
+        if (m.periods && m.periods.length) {
+          html += `<div class="card marine"><div class="label">Marine · ANZ345</div>` +
+            m.periods.slice(0,3).map(p => `<p><span class="pname">${p.name}.</span> ${p.text}</p>`).join("") +
+            `<div class="muted">${m.issued || ""}</div></div>`;
+        }
+        html += `<div class="actions"><button id="refresh">Refresh</button><button type="button" class="share" id="share">Share</button></div>`;
+        if (d.errors && d.errors.length) html += `<p class="err">${d.errors.join(" · ")}</p>`;
+        window._gsbLast = d;
+        root.innerHTML = html;
+        $("refresh").onclick = load;
+        const shareBtn = $("share");
+        if (shareBtn) shareBtn.onclick = shareNow;
+      } catch (e) {
+        root.innerHTML = `<p class="err">Could not load conditions. ${e}</p><button id="refresh">Retry</button>`;
+        $("refresh").onclick = load;
+      }
+    }
+    load();
+    window.addEventListener("pageshow", () => { load(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+  </script>
+</body>
+</html>
