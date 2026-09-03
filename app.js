@@ -7,7 +7,8 @@
   const PLACE = "Great South Bay · Patchogue–Sayville";
   const BUOY_URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html";
   // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Direct fetch is tried
-  // first; this proxy is last resort for THAT HTML PAGE ONLY.
+  // first; cors.sh next; same-origin buoy.json; NWS 44069; allorigins last.
+  const BUOY_CORS_SH = "https://proxy.cors.sh/" + BUOY_URL;
   const BUOY_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BUOY_URL);
   const NWS_44069 = "https://api.weather.gov/stations/44069/observations/latest";
   const NDBC_44069 = "https://www.ndbc.noaa.gov/station_page.php?station=44069";
@@ -491,28 +492,32 @@
       return parseBuoy(await getText(BUOY_URL));
     } catch (e1) {
       try {
-        const snap = await getJson("./buoy.json?t=" + Date.now());
-        if (snap && snap.windKt != null) {
-          if (snap.observedIso) {
-            const t = Date.parse(snap.observedIso);
-            if (!Number.isNaN(t)) snap.ageMin = Math.floor((Date.now() - t) / 60000);
-          }
-          return snap;
-        }
-        throw new Error("buoy snapshot missing windKt");
-      } catch (e2) {
+        return parseBuoy(await getText(BUOY_CORS_SH));
+      } catch (eCors) {
         try {
-          return parseNws44069(
-            await getJson(NWS_44069, {
-              headers: {
-                Accept: "application/geo+json",
-                "User-Agent": "GSBBay/1.0",
-              },
-            })
-          );
-        } catch (e3) {
-          // Direct SoMAS has no CORS; allorigins is last-resort for THAT HTML PAGE ONLY.
-          return parseBuoy(await getText(BUOY_PROXY));
+          const snap = await getJson("./buoy.json?t=" + Date.now());
+          if (snap && snap.windKt != null) {
+            if (snap.observedIso) {
+              const t = Date.parse(snap.observedIso);
+              if (!Number.isNaN(t)) snap.ageMin = Math.floor((Date.now() - t) / 60000);
+            }
+            return snap;
+          }
+          throw new Error("buoy snapshot missing windKt");
+        } catch (e2) {
+          try {
+            return parseNws44069(
+              await getJson(NWS_44069, {
+                headers: {
+                  Accept: "application/geo+json",
+                  "User-Agent": "GSBBay/1.0",
+                },
+              })
+            );
+          } catch (e3) {
+            // Direct SoMAS has no CORS; allorigins is last-resort for THAT HTML PAGE ONLY.
+            return parseBuoy(await getText(BUOY_PROXY));
+          }
         }
       }
     }
