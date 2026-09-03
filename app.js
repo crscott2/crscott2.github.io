@@ -9,6 +9,8 @@
   // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Direct fetch is tried
   // first; this proxy is last resort for THAT HTML PAGE ONLY.
   const BUOY_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BUOY_URL);
+  const NWS_44069 = "https://api.weather.gov/stations/44069/observations/latest";
+  const NDBC_44069 = "https://www.ndbc.noaa.gov/station_page.php?station=44069";
   const MARINE_TGFTP = "https://tgftp.nws.noaa.gov/data/forecasts/marine/coastal/an/anz345.txt";
   const CWF_LIST = "https://api.weather.gov/products/types/CWF/locations/OKX";
   const ALERTS_URL = "https://api.weather.gov/alerts/active?zone=ANZ345,NYZ080";
@@ -185,6 +187,47 @@
       airF: airF,
       waterF: waterF,
       humidity: fnum(cell(html, "Humidity")),
+    };
+  }
+
+  const COMPASS16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+
+  function compass16(deg) {
+    if (deg == null || Number.isNaN(Number(deg))) return null;
+    const d = ((Number(deg) % 360) + 360) % 360;
+    return COMPASS16[Math.round(d / 22.5) % 16];
+  }
+
+  function nwsVal(obj) {
+    if (!obj || obj.value == null) return null;
+    const n = Number(obj.value);
+    return Number.isNaN(n) ? null : n;
+  }
+
+  function parseNws44069(data) {
+    const p = (data && data.properties) || {};
+    const observed = p.timestamp ? new Date(p.timestamp) : null;
+    const okObs = observed && !Number.isNaN(observed.getTime());
+    const kmh = nwsVal(p.windSpeed);
+    const gustKmh = nwsVal(p.windGust);
+    const c = nwsVal(p.temperature);
+    const rh = nwsVal(p.relativeHumidity);
+    const deg = nwsVal(p.windDirection);
+    let ageMin = null;
+    if (okObs) ageMin = Math.floor((Date.now() - observed.getTime()) / 60000);
+    return {
+      name: "GSB Buoy #1",
+      source: NDBC_44069,
+      observedEt: okObs ? formatEtClock(observed) : null,
+      observedIso: okObs ? toEtIso(observed) : null,
+      ageMin: ageMin,
+      windKt: kmh != null ? kmh / 1.852 : null,
+      gustKt: gustKmh != null ? gustKmh / 1.852 : null,
+      windDir: compass16(deg),
+      windDeg: deg != null ? Math.round(deg) : null,
+      airF: c != null ? c * 9 / 5 + 32 : null,
+      waterF: null,
+      humidity: rh != null ? Math.round(rh) : null,
     };
   }
 
@@ -446,9 +489,20 @@
   async function fetchBuoy() {
     try {
       return parseBuoy(await getText(BUOY_URL));
-    } catch (e) {
-      // Direct SoMAS has no CORS; allorigins is the static-only workaround.
-      return parseBuoy(await getText(BUOY_PROXY));
+    } catch (e1) {
+      try {
+        return parseNws44069(
+          await getJson(NWS_44069, {
+            headers: {
+              Accept: "application/geo+json",
+              "User-Agent": "GSBBay/1.0",
+            },
+          })
+        );
+      } catch (e2) {
+        // Direct SoMAS has no CORS; allorigins is last-resort for THAT HTML PAGE ONLY.
+        return parseBuoy(await getText(BUOY_PROXY));
+      }
     }
   }
 
@@ -569,6 +623,7 @@
   window.GSB = {
     gather: gather,
     parseBuoy: parseBuoy,
+    parseNws44069: parseNws44069,
     parseMarine: parseMarine,
     parseTides: parseTides,
     stoplight: stoplight,
