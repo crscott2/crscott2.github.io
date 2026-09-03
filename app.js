@@ -491,17 +491,29 @@
       return parseBuoy(await getText(BUOY_URL));
     } catch (e1) {
       try {
-        return parseNws44069(
-          await getJson(NWS_44069, {
-            headers: {
-              Accept: "application/geo+json",
-              "User-Agent": "GSBBay/1.0",
-            },
-          })
-        );
+        const snap = await getJson("./buoy.json?t=" + Date.now());
+        if (snap && snap.windKt != null) {
+          if (snap.observedIso) {
+            const t = Date.parse(snap.observedIso);
+            if (!Number.isNaN(t)) snap.ageMin = Math.floor((Date.now() - t) / 60000);
+          }
+          return snap;
+        }
+        throw new Error("buoy snapshot missing windKt");
       } catch (e2) {
-        // Direct SoMAS has no CORS; allorigins is last-resort for THAT HTML PAGE ONLY.
-        return parseBuoy(await getText(BUOY_PROXY));
+        try {
+          return parseNws44069(
+            await getJson(NWS_44069, {
+              headers: {
+                Accept: "application/geo+json",
+                "User-Agent": "GSBBay/1.0",
+              },
+            })
+          );
+        } catch (e3) {
+          // Direct SoMAS has no CORS; allorigins is last-resort for THAT HTML PAGE ONLY.
+          return parseBuoy(await getText(BUOY_PROXY));
+        }
       }
     }
   }

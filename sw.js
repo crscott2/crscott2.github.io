@@ -1,4 +1,4 @@
-const CACHE = "gsb-v5";
+const CACHE = "gsb-v6";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(() => self.skipWaiting()));
 });
@@ -24,6 +24,7 @@ self.addEventListener("fetch", (e) => {
   const isHtml =
     e.request.mode === "navigate" ||
     u.pathname.endsWith(".html") ||
+    u.pathname.endsWith(".json") ||
     /\/sw\.js$/i.test(u.pathname);
   if (isData || isHtml) {
     e.respondWith(fetch(e.request, { cache: "no-store" }));
