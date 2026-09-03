@@ -4,16 +4,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="GSB" />
-  <meta name="theme-color" content="#0b1c33" />
+  <meta name="theme-color" content="#F5C518" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-180-v9.png" />
+  <link rel="apple-touch-icon" href="icon-180-v9.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
   <title>GSB</title>
-  <meta name="gsb-build" content="7" />
+  <meta name="gsb-build" content="10" />
   <style>
     :root { color-scheme: dark; --navy:#0b1c33; --navy2:#12263f; --cream:#f3e6c8; --cream2:#e8d5a8; --brass:#c4a35a; --brass-dk:#8a6a2f; --ink:#1a1408; }
     * { box-sizing: border-box; }
@@ -126,7 +127,7 @@
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=9");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=10");
     const $ = (id) => document.getElementById(id);
     const kt = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
     const f = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
