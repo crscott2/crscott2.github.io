@@ -383,16 +383,31 @@
 
   function gfmt(n) { return String(Number(n)); }
 
-  function stoplight(buoy, marine, flow, alerts) {
+  function driftStoplight(flow) {
     const rank = { green: 0, yellow: 1, red: 2 };
+    if (!flow) return { color: "yellow", factors: [] };
     const factors = [];
-    const v = (flow || {}).verdict;
+    const v = flow.verdict;
     if (v === "against") factors.push(["wind-vs-tide", "red", "Wind against tide"]);
     else if (v === "with") factors.push(["wind-vs-tide", "green", "Wind with tide"]);
     else if (v === "slack_high" || v === "turning") {
       factors.push(["wind-vs-tide", "green", v === "slack_high" ? "Slack high" : "Tide turning"]);
     } else if (v === "slack_low") factors.push(["wind-vs-tide", "green", "Slack low"]);
-    else if (v) factors.push(["wind-vs-tide", "yellow", (flow || {}).label || "Cross tide"]);
+    else if (v === "cross" || v) factors.push(["wind-vs-tide", "yellow", flow.label || "Cross tide"]);
+    let color = "green";
+    for (const f of factors) {
+      if (rank[f[1]] > rank[color]) color = f[1];
+    }
+    if (!factors.length) color = "yellow";
+    return {
+      color: color,
+      factors: factors.map(function (f) { return { id: f[0], color: f[1], text: f[2] }; }),
+    };
+  }
+
+  function stoplight(buoy, marine, flow, alerts) {
+    const rank = { green: 0, yellow: 1, red: 2 };
+    const factors = [];
 
     const kt = (buoy || {}).windKt;
     if (kt != null) {
@@ -623,6 +638,11 @@
 
     try { out.flow = windTideFlow(out.buoy, out.tides); }
     catch (e) { out.errors.push("flow: " + (e && e.message ? e.message : e)); out.flow = null; }
+    try { out.drift = driftStoplight(out.flow); }
+    catch (e) {
+      out.errors.push("drift: " + (e && e.message ? e.message : e));
+      out.drift = { color: "yellow", factors: [] };
+    }
     try { out.stoplight = stoplight(out.buoy, out.marine, out.flow, out.alerts); }
     catch (e) {
       out.errors.push("stoplight: " + (e && e.message ? e.message : e));
@@ -644,6 +664,7 @@
     parseMarine: parseMarine,
     parseTides: parseTides,
     stoplight: stoplight,
+    driftStoplight: driftStoplight,
     windTideFlow: windTideFlow,
     moonPhase: moonPhase,
     mphOf: mphOf,

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
   <title>GSB</title>
-  <meta name="gsb-build" content="10" />
+  <meta name="gsb-build" content="11" />
   <style>
     :root { color-scheme: dark; --navy:#0b1c33; --navy2:#12263f; --cream:#f3e6c8; --cream2:#e8d5a8; --brass:#c4a35a; --brass-dk:#8a6a2f; --ink:#1a1408; }
     * { box-sizing: border-box; }
@@ -118,6 +118,27 @@
     .stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 22px #eab308, inset 0 -4px 8px rgba(0,0,0,.25); }
     .stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 22px #22c55e, inset 0 -4px 8px rgba(0,0,0,.25); }
     .stoplight-factors { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 13px; letter-spacing: .08em; color: var(--cream2); text-align: center; margin-top: 8px; line-height: 1.35; max-width: 22rem; }
+    .card.drift { position: relative; }
+    .drift-light.stoplight {
+      position: absolute; top: 6px; right: 8px; z-index: 2;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      background: linear-gradient(180deg, #4a3a22 0%, #1c140c 55%, #0e0b07 100%);
+      border: 2px solid var(--brass);
+      border-radius: 6px;
+      box-shadow: inset 0 1px 0 #d6b56a, inset 0 -4px 8px rgba(0,0,0,.55), 0 4px 10px rgba(0,0,0,.35);
+    }
+    .drift-light.stoplight .lamp {
+      width: 15px; height: 15px; border-radius: 50%;
+      background: #1a140c; opacity: 0.32;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.75), 0 0 0 1px #2a2114;
+    }
+    .drift-light.stoplight.on-red .lamp.red { background: #ef4444; opacity: 1; box-shadow: 0 0 10px #ef4444, inset 0 -2px 4px rgba(0,0,0,.25); }
+    .drift-light.stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 10px #eab308, inset 0 -2px 4px rgba(0,0,0,.25); }
+    .drift-light.stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 10px #22c55e, inset 0 -2px 4px rgba(0,0,0,.25); }
   </style>
 </head>
 <body>
@@ -127,7 +148,7 @@
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=10");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=11");
     const $ = (id) => document.getElementById(id);
     const kt = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
     const f = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
@@ -246,8 +267,15 @@
           html += `<div class="card alert"><div class="label">Alert</div>${alerts.map(a => `<div>${a.headline || a.event}</div>`).join("")}</div>`;
         }
         if (fl.label) {
-          html += `<div class="card">
-            <div class="label">Wind vs tide</div>
+          const drift = d.drift || {};
+          const driftColor = drift.color || "yellow";
+          html += `<div class="card drift">
+            <div class="drift-light stoplight on-${driftColor}" role="img" aria-label="Drift ${driftColor}">
+              <div class="lamp red"></div>
+              <div class="lamp yellow"></div>
+              <div class="lamp green"></div>
+            </div>
+            <div class="label">Drift Conditions</div>
             <div class="flow ${fl.verdict}">${fl.label}</div>
             <div class="sub">${fl.tide ? fl.tide[0].toUpperCase()+fl.tide.slice(1) : ""} · water ${fl.waterMoves || ""}</div>
             <div class="muted">${fl.detail || ""} Wind from ${fl.windFrom || "—"}.</div>
