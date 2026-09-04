@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
   <title>GSB</title>
-  <meta name="gsb-build" content="13" />
+  <meta name="gsb-build" content="14" />
   <style>
     :root { color-scheme: dark; --navy:#0b1c33; --navy2:#12263f; --cream:#f3e6c8; --cream2:#e8d5a8; --brass:#c4a35a; --brass-dk:#8a6a2f; --ink:#1a1408; }
     * { box-sizing: border-box; }
@@ -25,101 +25,132 @@
       font-family: "Source Serif 4", Palatino, Georgia, "Times New Roman", serif;
     }
     body { min-height: 100dvh; padding: calc(12px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); }
+    header.app-header {
+      text-align: center;
+      margin: 0 0 16px;
+      padding: 0 4px 12px;
+      border-bottom: 1px solid var(--brass-dk);
+    }
     h1 {
       font-family: Oswald, "Arial Narrow", sans-serif;
-      font-size: 22px; font-weight: 700; letter-spacing: .12em;
-      text-transform: uppercase; color: var(--cream); margin: 0 0 2px;
+      font-size: 26px; font-weight: 700; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--cream); margin: 0 0 8px;
       text-shadow: 0 1px 0 #000;
     }
-    .place { font-size: 14px; color: var(--cream2); margin-bottom: 14px; letter-spacing: .04em; }
+    .place {
+      font-size: 13px; color: var(--cream2); margin: 0;
+      letter-spacing: .08em;
+      display: inline-block;
+      padding-top: 6px;
+      border-top: 1px solid var(--brass);
+    }
     .card {
       background: linear-gradient(180deg, #152a48 0%, var(--navy2) 100%);
       border: 2px solid var(--brass);
-      border-radius: 6px;
-      box-shadow: inset 0 0 0 1px #6e5420, 0 6px 14px rgba(0,0,0,.35);
-      padding: 14px 14px 12px;
-      margin-bottom: 12px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 1px rgba(196,163,90,.45), 0 6px 14px rgba(0,0,0,.35);
+      padding: 16px 17px 14px;
+      margin-bottom: 14px;
     }
     .label {
       font-family: Oswald, "Arial Narrow", sans-serif;
-      font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
-      color: var(--brass); margin-bottom: 8px;
+      font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--brass); margin-bottom: 12px;
     }
     .big { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: .02em; color: #fff8e8; }
     .unit { font-size: 22px; font-weight: 600; color: var(--cream2); }
     .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline; }
-    .sub { color: var(--cream); font-size: 18px; margin-top: 8px; }
+    .sub { color: var(--cream); font-size: 17px; margin-top: 10px; line-height: 1.35; }
     .wind-dir { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 36px; font-weight: 700; letter-spacing: .06em; line-height: 1; color: #fff8e8; text-transform: uppercase; }
     .gust { font-size: 16px; color: var(--cream2); margin-top: 6px; }
-    .muted { color: #d7c59a; font-size: 14px; }
+    .muted { color: #c9b88a; font-size: 13px; line-height: 1.4; }
     .alert { background: #3a1d12; border-color: #c47a3a; color: #ffd7c2; }
-    .marine p { margin: 0 0 10px; font-size: 16px; line-height: 1.4; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; }
-    .marine p:last-child { margin: 0; }
+    .marine p { margin: 0 0 14px; font-size: 16px; line-height: 1.5; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; color: var(--cream); }
+    .marine p:last-of-type { margin-bottom: 10px; }
     .pname { color: var(--brass); font-weight: 700; font-family: Oswald, "Arial Narrow", sans-serif; letter-spacing: .06em; }
-    img.radar { width: 100%; border-radius: 2px; background: #000; display: block; border: 1px solid var(--brass-dk); }
+    img.radar {
+      width: 100%; border-radius: 6px; background: #000; display: block;
+      border: 1px solid var(--brass);
+      box-shadow: inset 0 0 0 1px rgba(196,163,90,.25);
+    }
     button {
       appearance: none;
       background: linear-gradient(#d6b56a, #9a7533);
       color: var(--ink);
       border: 1px solid #6e5420;
-      border-radius: 4px;
-      padding: 10px 18px;
+      border-radius: 6px;
+      padding: 12px 18px;
       font-size: 16px;
       font-weight: 700;
       font-family: Oswald, "Arial Narrow", sans-serif;
       letter-spacing: .08em;
       text-transform: uppercase;
+      flex: 1;
     }
-    .actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+    .actions {
+      display: flex; gap: 10px; align-items: stretch;
+      margin: 6px 0 4px; width: 100%;
+    }
     button.share {
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 12px 18px;
+      font-size: 14px;
       letter-spacing: .1em;
       background: transparent;
       color: var(--cream2);
       border: 1px solid var(--brass-dk);
+      flex: 1;
     }
-    .hint { font-size: 13px; color: #d7c59a; line-height: 1.4; margin-top: 8px; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; }
+    .hint {
+      font-size: 11px; color: #9a8a62; line-height: 1.35;
+      margin-top: 14px; text-align: center;
+      font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif;
+      opacity: .85;
+    }
     .err { color: #ffb4a8; font-size: 13px; }
     .stale { color: #ffd36a; font-weight: 700; }
-    .age { margin-top: 8px; font-size: 15px; }
-    .flow { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: .04em; }
+    .age { margin-top: 12px; font-size: 14px; }
+    .flow { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 30px; font-weight: 700; line-height: 1.15; letter-spacing: .04em; }
     .flow.with { color: #8fe0a8; }
     .flow.against { color: #ffb087; }
     .flow.cross { color: #ffd36a; }
     .flow.turning, .flow.slack_high, .flow.slack_low { color: #8fe0a8; }
     .tidechart { position: relative; }
     .moon {
-      position: absolute; top: 6px; right: 8px;
+      position: absolute; top: 8px; right: 10px;
       font-size: 20px; line-height: 1; z-index: 2;
       filter: drop-shadow(0 0 1px #f3e6c8);
     }
-    .tidechart { background: #f3e6c8; border: 1px solid var(--brass-dk); border-radius: 2px; padding: 8px 6px 4px; color: var(--ink); }
+    .tidechart { background: #f3e6c8; border: 1px solid var(--brass-dk); border-radius: 4px; padding: 8px 6px 4px; color: var(--ink); }
     .tidechart svg { width: 100%; height: auto; display: block; }
     .noaa { font-size: 10px; color: #5a4a2a; text-align: right; margin-top: 2px; }
-    .stoplight-wrap { display: flex; flex-direction: column; align-items: center; margin: 4px 0 16px; }
+    .stoplight-wrap { display: flex; flex-direction: column; align-items: center; margin: 2px 0 16px; }
     .stoplight {
       display: flex;
       flex-direction: row;
       align-items: center;
-      gap: 12px;
-      padding: 12px 18px;
+      gap: 10px;
+      padding: 10px 16px;
       background: linear-gradient(180deg, #4a3a22 0%, #1c140c 55%, #0e0b07 100%);
       border: 3px solid var(--brass);
       border-radius: 10px;
       box-shadow: inset 0 1px 0 #d6b56a, inset 0 -8px 14px rgba(0,0,0,.55), 0 8px 18px rgba(0,0,0,.4);
     }
     .stoplight .lamp {
-      width: 54px; height: 54px; border-radius: 50%;
+      width: 48px; height: 48px; border-radius: 50%;
       background: #1a140c; opacity: 0.32;
       box-shadow: inset 0 3px 8px rgba(0,0,0,.75), 0 0 0 2px #2a2114;
     }
     .stoplight.on-red .lamp.red { background: #ef4444; opacity: 1; box-shadow: 0 0 22px #ef4444, inset 0 -4px 8px rgba(0,0,0,.25); }
     .stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 22px #eab308, inset 0 -4px 8px rgba(0,0,0,.25); }
     .stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 22px #22c55e, inset 0 -4px 8px rgba(0,0,0,.25); }
-    .stoplight-factors { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 13px; letter-spacing: .08em; color: var(--cream2); text-align: center; margin-top: 8px; line-height: 1.35; max-width: 22rem; }
+    .stoplight-factors {
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      font-size: 12px; font-weight: 500; letter-spacing: .08em;
+      color: var(--cream2); text-align: center;
+      margin-top: 10px; line-height: 1.4; max-width: 22rem;
+    }
 
-    .buoy-hero { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 14px 0 18px; }
+    .buoy-hero { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 2px 0 12px; }
     .buoy-speed { display: flex; flex-direction: row; align-items: baseline; gap: 8px; }
     .buoy-speed .big { font-size: 92px; color: #fff8e8; }
     .buoy-speed .unit {
@@ -131,23 +162,27 @@
     .buoy-dir .wind-dir { font-size: 58px; text-align: right; }
     .buoy-dir .gust { margin-top: 8px; font-size: 18px; color: var(--cream2); }
     .buoy-grid {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;
-      border-top: 1px solid var(--brass-dk); padding-top: 15px; margin-top: 4px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+      border-top: 1px solid var(--brass-dk); padding-top: 12px; margin-top: 0;
     }
     .buoy-cell { text-align: center; }
     .buoy-k {
       font-family: Oswald, "Arial Narrow", sans-serif;
-      font-size: 13px; letter-spacing: .2em; text-transform: uppercase;
-      color: var(--brass); margin-bottom: 4px;
+      font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--brass); margin-bottom: 6px;
     }
     .buoy-v {
       font-family: Oswald, "Arial Narrow", sans-serif;
-      font-size: 33px; font-weight: 700; color: #fff8e8; line-height: 1.1;
+      font-size: 30px; font-weight: 700; color: #fff8e8; line-height: 1.1;
     }
-    .card.buoy .age { padding-top: 12px; width: 100%; }
+    .card.buoy .age { padding-top: 10px; width: 100%; }
     .card.drift { position: relative; }
+    .card.drift .label,
+    .card.drift .flow { padding-right: 72px; }
+    .card.drift .sub { margin-top: 8px; font-size: 16px; color: var(--cream); }
+    .card.drift .muted { margin-top: 6px; }
     .drift-light.stoplight {
-      position: absolute; top: 6px; right: 8px; z-index: 2;
+      position: absolute; top: 10px; right: 12px; z-index: 2;
       display: flex;
       flex-direction: row;
       align-items: center;
@@ -166,16 +201,19 @@
     .drift-light.stoplight.on-red .lamp.red { background: #ef4444; opacity: 1; box-shadow: 0 0 10px #ef4444, inset 0 -2px 4px rgba(0,0,0,.25); }
     .drift-light.stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 10px #eab308, inset 0 -2px 4px rgba(0,0,0,.25); }
     .drift-light.stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 10px #22c55e, inset 0 -2px 4px rgba(0,0,0,.25); }
+
   </style>
 </head>
 <body>
-  <h1>GSB Conditions</h1>
-  <div class="place" id="place">Great South Bay</div>
+  <header class="app-header">
+    <h1>GSB Conditions</h1>
+    <div class="place" id="place">Great South Bay</div>
+  </header>
   <div id="root">Loading…</div>
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=13");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=14");
     const $ = (id) => document.getElementById(id);
     const kt = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
     const f = (n) => (n == null || Number.isNaN(n) ? "—" : Math.round(n));
@@ -325,7 +363,6 @@
             </div>
             <div class="buoy-dir">
               <div class="wind-dir">${b.windDir || "—"}</div>
-              ${(b.gustMph != null || b.gustKt != null) ? `<div class="gust">gust ${gustMph} mph</div>` : ""}
             </div>
           </div>
           <div class="buoy-grid">
