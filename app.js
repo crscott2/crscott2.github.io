@@ -371,6 +371,107 @@
     };
   }
 
+
+  /** ET wall-clock → epoch ms (uses parseNoaaEt / etParts). */
+  function etWallMs(base, dayOff, hour, minute) {
+    const approx = new Date(etMidnight(base).getTime() + dayOff * 86400000 + 12 * 3600000);
+    const p = etParts(approx);
+    const dt = parseNoaaEt(
+      p.y + "-" + pad(p.mo) + "-" + pad(p.d) + " " + pad(hour) + ":" + pad(minute || 0)
+    );
+    return dt ? dt.getTime() : null;
+  }
+
+  function etWeekdayUpper(d) {
+    return new Intl.DateTimeFormat("en-US", { timeZone: ET, weekday: "long" })
+      .format(d)
+      .toUpperCase();
+  }
+
+  /**
+   * Map a CWF period name to {start,end} epoch ms in ET, or null if unknown.
+   * Empty name → [now, now+4h] (near-term catch-all).
+   */
+  function periodTimeRange(name, now) {
+    now = now || new Date();
+    const raw = String(name == null ? "" : name).trim();
+    if (!raw) {
+      const t = now.getTime();
+      return { start: t, end: t + 4 * 3600 * 1000 };
+    }
+    const n = raw.toUpperCase().replace(/\s+/g, " ").trim();
+    const pNow = etParts(now);
+
+    if (/^(EARLY |LATE )?THIS MORNING$/.test(n)) {
+      return { start: etWallMs(now, 0, 5, 0), end: etWallMs(now, 0, 12, 0) };
+    }
+    if (/^(REST OF )?THIS AFTERNOON$/.test(n)) {
+      return { start: etWallMs(now, 0, 12, 0), end: etWallMs(now, 0, 18, 0) };
+    }
+    if (n === "THIS EVENING") {
+      return { start: etWallMs(now, 0, 18, 0), end: etWallMs(now, 0, 22, 0) };
+    }
+    // OVERNIGHT: after 18:00 → next calendar morning 00–06; else tonight 18→06
+    if (n === "OVERNIGHT") {
+      if (pNow.h >= 18) {
+        return { start: etWallMs(now, 1, 0, 0), end: etWallMs(now, 1, 6, 0) };
+      }
+      return { start: etWallMs(now, 0, 18, 0), end: etWallMs(now, 1, 6, 0) };
+    }
+    if (n === "TONIGHT" || n === "REST OF TONIGHT") {
+      return { start: etWallMs(now, 0, 18, 0), end: etWallMs(now, 1, 6, 0) };
+    }
+    if (n === "TODAY" || n === "REST OF TODAY") {
+      const dayStart = etWallMs(now, 0, 6, 0);
+      const dayEnd = etWallMs(now, 0, 18, 0);
+      const start = Math.max(now.getTime(), dayStart);
+      return { start: start, end: dayEnd };
+    }
+
+    const WEEKDAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+    let isNight = false;
+    let dayToken = null;
+    const nightM = n.match(/^([A-Z]+) NIGHT$/);
+    if (nightM && WEEKDAYS.indexOf(nightM[1]) >= 0) {
+      dayToken = nightM[1];
+      isNight = true;
+    } else if (WEEKDAYS.indexOf(n) >= 0) {
+      dayToken = n;
+      isNight = false;
+    }
+    if (dayToken) {
+      for (let i = 0; i < 8; i++) {
+        const approx = new Date(etMidnight(now).getTime() + i * 86400000 + 12 * 3600000);
+        if (etWeekdayUpper(approx) !== dayToken) continue;
+        if (isNight) {
+          return { start: etWallMs(now, i, 18, 0), end: etWallMs(now, i + 1, 6, 0) };
+        }
+        return { start: etWallMs(now, i, 6, 0), end: etWallMs(now, i, 18, 0) };
+      }
+      return null;
+    }
+
+    // Unknown named period
+    return null;
+  }
+
+  /**
+   * Periods whose ET range overlaps [now, now+hours]. Default hours=4.
+   * Sanity: at 08:00 ET, TONIGHT is excluded; THIS MORNING and THIS AFTERNOON
+   * (window touches 12:00) are included. At 19:00 ET, TONIGHT is included.
+   */
+  function periodsInNextHours(periods, hours, now) {
+    if (hours == null || hours === undefined) hours = 4;
+    now = now || new Date();
+    const t0 = now.getTime();
+    const t1 = t0 + hours * 3600 * 1000;
+    return (periods || []).filter(function (p) {
+      const r = periodTimeRange(p && p.name, now);
+      if (!r) return false;
+      return r.start <= t1 && r.end > t0;
+    });
+  }
+
   function parseWaveFt(marine) {
     if (!marine) return [null, null];
     const periods = marine.periods || [];
@@ -417,14 +518,20 @@
       else factors.push(["wind", "yellow", mph + " mph"]);
     }
 
-    const wave = parseWaveFt(marine)[0];
+    // Near-term CWF only (~next 4 hours) so evening tstm/rain do not paint a fine morning yellow/red.
+    const allPeriods = ((marine || {}).periods || []);
+    let near = periodsInNextHours(allPeriods, 4);
+    if (!near.length && allPeriods.length) near = [allPeriods[0]];
+    const marineNear = { periods: near };
+
+    const wave = parseWaveFt(marineNear)[0];
     if (wave != null) {
       if (wave > 2) factors.push(["waves", "red", gfmt(wave) + " ft"]);
       else if (wave <= 1) factors.push(["waves", "green", gfmt(wave) + " ft or less"]);
       else factors.push(["waves", "yellow", gfmt(wave) + " ft"]);
     }
 
-    const blob = ((marine || {}).periods || []).slice(0, 4).map(function (p) {
+    const blob = near.map(function (p) {
       return (p.text || "") + " " + (p.name || "");
     }).join(" ").toLowerCase();
     const alertBlob = (alerts || []).map(function (a) {
@@ -668,5 +775,7 @@
     windTideFlow: windTideFlow,
     moonPhase: moonPhase,
     mphOf: mphOf,
+    periodTimeRange: periodTimeRange,
+    periodsInNextHours: periodsInNextHours,
   };
 })();
