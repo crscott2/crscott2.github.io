@@ -1,0 +1,31 @@
+name: Fetch SoMAS buoy
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch buoy snapshot
+        run: python3 scripts/fetch_buoy.py
+
+      - name: Commit buoy.json if changed
+        run: |
+          git add buoy.json
+          if git diff --cached --quiet; then
+            echo "buoy.json unchanged"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Update buoy.json from SoMAS GSB Buoy #1"
+          git push
