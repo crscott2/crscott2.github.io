@@ -6,8 +6,8 @@
   const KT_TO_MPH = 1.150779448;
   const PLACE = "Great South Bay · Patchogue–Sayville";
   const BUOY_URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html";
-  // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Direct fetch is tried
-  // first; cors.sh next; same-origin buoy.json; NWS 44069; allorigins last.
+  // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Order: SoMAS direct,
+  // NWS 44069, cors.sh SoMAS, allorigins SoMAS, then buoy.json only if age < 45m.
   const BUOY_CORS_SH = "https://proxy.cors.sh/" + BUOY_URL;
   const BUOY_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BUOY_URL);
   const NWS_44069 = "https://api.weather.gov/stations/44069/observations/latest";
@@ -610,35 +610,37 @@
   }
 
   async function fetchBuoy() {
+    // Prefer live SoMAS, then live NWS 44069. Snapshot buoy.json is last-resort
+    // and only accepted when observed age is under 45 minutes.
     try {
       return parseBuoy(await getText(BUOY_URL));
     } catch (e1) {
       try {
-        return parseBuoy(await getText(BUOY_CORS_SH));
-      } catch (eCors) {
+        return parseNws44069(
+          await getJson(NWS_44069, {
+            headers: {
+              Accept: "application/geo+json",
+              "User-Agent": "GSBBay/1.0",
+            },
+          })
+        );
+      } catch (eNws) {
         try {
-          const snap = await getJson("./buoy.json?t=" + Date.now());
-          if (snap && snap.windKt != null) {
+          return parseBuoy(await getText(BUOY_CORS_SH));
+        } catch (eCors) {
+          try {
+            return parseBuoy(await getText(BUOY_PROXY));
+          } catch (eProxy) {
+            const snap = await getJson("./buoy.json?t=" + Date.now());
+            if (!snap || snap.windKt == null) throw new Error("buoy snapshot missing windKt");
             if (snap.observedIso) {
               const t = Date.parse(snap.observedIso);
               if (!Number.isNaN(t)) snap.ageMin = Math.floor((Date.now() - t) / 60000);
             }
+            if (snap.ageMin == null || snap.ageMin > 45) {
+              throw new Error("buoy snapshot too old (" + snap.ageMin + " min)");
+            }
             return snap;
-          }
-          throw new Error("buoy snapshot missing windKt");
-        } catch (e2) {
-          try {
-            return parseNws44069(
-              await getJson(NWS_44069, {
-                headers: {
-                  Accept: "application/geo+json",
-                  "User-Agent": "GSBBay/1.0",
-                },
-              })
-            );
-          } catch (e3) {
-            // Direct SoMAS has no CORS; allorigins is last-resort for THAT HTML PAGE ONLY.
-            return parseBuoy(await getText(BUOY_PROXY));
           }
         }
       }
