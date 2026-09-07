@@ -1,15 +1,15 @@
 {
   "name": "GSB Buoy #1",
-  "source": "https://www.ndbc.noaa.gov/station_page.php?station=44069",
-  "observedEt": "7:15 AM",
-  "observedIso": "2026-09-07T07:15:00-04:00",
-  "ageMin": 56,
-  "windKt": 11.663066954643629,
-  "gustKt": null,
-  "windDir": "NW",
-  "windDeg": 320,
-  "airF": 63.86,
-  "waterF": null,
-  "humidity": 79,
-  "fetchedAt": "2026-09-07T08:11:55.357723-04:00"
+  "source": "https://po.somas.stonybrook.edu/GSB/B1RT.html",
+  "observedEt": "8:00 AM",
+  "observedIso": "2026-09-07T08:00:00-04:00",
+  "ageMin": 18,
+  "windKt": 12.09,
+  "gustKt": 14.81,
+  "windDir": "NNW",
+  "windDeg": 327,
+  "airF": 64.87,
+  "waterF": 74.18,
+  "humidity": 72.8,
+  "fetchedAt": "2026-09-07T08:18:47.739337-04:00"
 }
