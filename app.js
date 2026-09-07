@@ -7,7 +7,7 @@
   const PLACE = "Great South Bay · Patchogue–Sayville";
   const BUOY_URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html";
   // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Order: SoMAS direct,
-  // NWS 44069, cors.sh SoMAS, allorigins SoMAS, then buoy.json only if age < 45m.
+  // buoy.json (Actions) first, then NWS 44069, cors proxies, then direct SoMAS.
   const BUOY_CORS_SH = "https://proxy.cors.sh/" + BUOY_URL;
   const BUOY_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BUOY_URL);
   const NWS_44069 = "https://api.weather.gov/stations/44069/observations/latest";
@@ -609,12 +609,41 @@
     return JSON.parse(await getText(url, opts));
   }
 
+  function snapFreshEnough(snap) {
+    if (!snap || snap.windKt == null) return false;
+    if (snap.observedIso) {
+      const t = Date.parse(snap.observedIso);
+      if (!Number.isNaN(t)) {
+        snap.ageMin = Math.floor((Date.now() - t) / 60000);
+      }
+    }
+    // SoMAS B1 often posts only every ~30–60 min; Actions refreshes the file
+    // more often. Accept a recent fetch even if observation age is a bit older.
+    if (snap.fetchedAt) {
+      const f = Date.parse(snap.fetchedAt);
+      if (!Number.isNaN(f)) {
+        const fetchAge = Math.floor((Date.now() - f) / 60000);
+        if (fetchAge <= 30) return true;
+      }
+    }
+    return snap.ageMin != null && snap.ageMin <= 90;
+  }
+
+  async function tryBuoySnapshot() {
+    const snap = await getJson("./buoy.json?t=" + Date.now());
+    if (!snapFreshEnough(snap)) {
+      throw new Error("buoy snapshot too old (" + (snap && snap.ageMin) + " min)");
+    }
+    return snap;
+  }
+
   async function fetchBuoy() {
-    // Prefer live SoMAS, then live NWS 44069. Snapshot buoy.json is last-resort
-    // and only accepted when observed age is under 45 minutes.
+    // Phone path: same-origin buoy.json (Actions every ~10m) first, then NWS
+    // 44069, then CORS proxies / direct SoMAS. Snapshot is accepted when
+    // fetched within 30m or observation age is under 90m.
     try {
-      return parseBuoy(await getText(BUOY_URL));
-    } catch (e1) {
+      return await tryBuoySnapshot();
+    } catch (eSnap) {
       try {
         return parseNws44069(
           await getJson(NWS_44069, {
@@ -631,16 +660,7 @@
           try {
             return parseBuoy(await getText(BUOY_PROXY));
           } catch (eProxy) {
-            const snap = await getJson("./buoy.json?t=" + Date.now());
-            if (!snap || snap.windKt == null) throw new Error("buoy snapshot missing windKt");
-            if (snap.observedIso) {
-              const t = Date.parse(snap.observedIso);
-              if (!Number.isNaN(t)) snap.ageMin = Math.floor((Date.now() - t) / 60000);
-            }
-            if (snap.ageMin == null || snap.ageMin > 45) {
-              throw new Error("buoy snapshot too old (" + snap.ageMin + " min)");
-            }
-            return snap;
+            return parseBuoy(await getText(BUOY_URL));
           }
         }
       }
