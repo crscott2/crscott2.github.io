@@ -763,6 +763,8 @@
         severity: p.severity,
         onset: p.onset || null,
         ends: p.ends || null,
+        description: (p.description || "").trim(),
+        instruction: (p.instruction || "").trim(),
       };
       item.window = alertWindow(item);
       item.affectsNow = alertAffectsNow(item, 4);
