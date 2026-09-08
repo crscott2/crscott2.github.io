@@ -65,6 +65,9 @@
     .gust { font-size: 16px; color: var(--cream2); margin-top: 6px; }
     .muted { color: #c9b88a; font-size: 13px; line-height: 1.4; }
     .alert { background: #3a1d12; border-color: #c47a3a; color: #ffd7c2; }
+    .alert-item + .alert-item { margin-top: 10px; }
+    .alert-event { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 20px; font-weight: 600; letter-spacing: .03em; }
+    .alert-when { margin-top: 2px; font-size: 16px; font-weight: 700; color: #ffe7c2; }
     .marine p { margin: 0 0 14px; font-size: 16px; line-height: 1.5; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; color: var(--cream); }
     .marine p:last-of-type { margin-bottom: 10px; }
     .pname { color: var(--brass); font-weight: 700; font-family: Oswald, "Arial Narrow", sans-serif; letter-spacing: .06em; }
@@ -329,7 +332,12 @@
           <div class="stoplight-factors">${slfacts || ""}</div>
         </div>`;
         if (alerts.length) {
-          html += `<div class="card alert"><div class="label">Alert</div>${alerts.map(a => `<div>${a.headline || a.event}</div>`).join("")}</div>`;
+          html += `<div class="card alert"><div class="label">Alert</div>` +
+            alerts.map(a => {
+              const when = a.window ? `<div class="alert-when">${a.window}</div>` : "";
+              return `<div class="alert-item"><div class="alert-event">${a.event || "Alert"}</div>${when}</div>`;
+            }).join("") +
+            `</div>`;
         }
         if (fl.label) {
           const drift = d.drift || {};

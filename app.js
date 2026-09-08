@@ -534,7 +534,11 @@
     const blob = near.map(function (p) {
       return (p.text || "") + " " + (p.name || "");
     }).join(" ").toLowerCase();
-    const alertBlob = (alerts || []).map(function (a) {
+    // Only alerts already in effect, or starting within 4 hours, affect the light.
+    const activeAlerts = (alerts || []).filter(function (a) {
+      return alertAffectsNow(a, 4);
+    });
+    const alertBlob = activeAlerts.map(function (a) {
       return (a.event || "") + " " + (a.headline || "");
     }).join(" ").toLowerCase();
     const alltxt = blob + " " + alertBlob;
@@ -545,7 +549,7 @@
     else if (hasTstm) factors.push(["tstm", "yellow", "Thunderstorms in the forecast"]);
 
     let hasMarineWarn = false;
-    for (const a of alerts || []) {
+    for (const a of activeAlerts) {
       const ev = ((a.event || "") + " " + (a.headline || "")).toLowerCase();
       if (ev.indexOf("rip current") >= 0) continue;
       if (/\bstatement\b/.test(ev) && !/\b(watch|warning)\b/.test(ev) && ev.indexOf("special weather") < 0) continue;
@@ -557,15 +561,17 @@
         ev.indexOf("hurricane") >= 0 ||
         ev.indexOf("storm warning") >= 0 ||
         ev.indexOf("storm watch") >= 0 ||
-        /\b(watch|warning)\b/.test(ev)
+        /\b(watch|warning|advisory)\b/.test(ev)
       ) {
         hasMarineWarn = true;
-        factors.push(["marine-warning", "red", (a.event || "Marine warning").trim()]);
+        const when = a.window ? " · " + a.window : "";
+        factors.push(["marine-warning", "red", (a.event || "Marine warning").trim() + when]);
         break;
       }
     }
-    if (!hasMarineWarn && /special weather|special marine|small craft|\bgale\b|storm warning|hurricane/.test(alltxt)) {
-      const label = alltxt.indexOf("special weather") >= 0 ? "Special Weather Statement" : "Marine watch/warning";
+    // Forecast-text fallback only from the next-4-hour periods, not future alerts.
+    if (!hasMarineWarn && /special weather|special marine|small craft|\bgale\b|storm warning|hurricane/.test(blob)) {
+      const label = blob.indexOf("special weather") >= 0 ? "Special Weather Statement" : "Marine watch/warning";
       factors.push(["marine-warning", "red", label]);
     }
 
@@ -713,6 +719,37 @@
     return tides;
   }
 
+  function formatAlertWhen(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const clock = formatEtClock(d);
+    const day = new Intl.DateTimeFormat("en-US", {
+      timeZone: ET,
+      weekday: "short",
+    }).format(d);
+    return clock + " " + day;
+  }
+
+  function alertWindow(a) {
+    const start = a && a.onset ? formatAlertWhen(a.onset) : null;
+    const end = a && a.ends ? formatAlertWhen(a.ends) : null;
+    if (start && end) return start + " to " + end;
+    if (end) return "until " + end;
+    if (start) return "from " + start;
+    return null;
+  }
+
+  function alertAffectsNow(a, hours) {
+    if (!a) return false;
+    if (hours == null) hours = 4;
+    const now = Date.now();
+    const start = a.onset ? Date.parse(a.onset) : NaN;
+    const end = a.ends ? Date.parse(a.ends) : NaN;
+    if (!Number.isNaN(end) && end <= now) return false;
+    if (!Number.isNaN(start)) return start <= now + hours * 3600000;
+    return true;
+  }
+
   async function fetchAlerts() {
     const data = await getJson(ALERTS_URL, { headers: { Accept: "application/geo+json" } });
     const out = [];
@@ -720,7 +757,16 @@
       const p = f.properties || {};
       const event = p.event || "";
       if (event.toLowerCase().indexOf("rip current") >= 0) continue;
-      out.push({ event: event, headline: p.headline || event, severity: p.severity });
+      const item = {
+        event: event,
+        headline: p.headline || event,
+        severity: p.severity,
+        onset: p.onset || null,
+        ends: p.ends || null,
+      };
+      item.window = alertWindow(item);
+      item.affectsNow = alertAffectsNow(item, 4);
+      out.push(item);
     }
     return out;
   }
