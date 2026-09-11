@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,12 +18,51 @@ OUT = ROOT / "buoy.json"
 URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html"
 UA = "GSBBay/1.0 (crscott2@gmail.com)"
 ET = ZoneInfo("America/New_York")
+RETRIES = 3
+TIMEOUT = 45
 
 
-def fetch(url: str, timeout: int = 20) -> bytes:
+def fetch_curl(url: str, timeout: int = TIMEOUT) -> bytes:
+    proc = subprocess.run(
+        [
+            "curl",
+            "-fsSL",
+            "--max-time",
+            str(timeout),
+            "-A",
+            UA,
+            "-H",
+            "Accept: */*",
+            url,
+        ],
+        check=False,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        err = (proc.stderr or b"").decode("utf-8", "replace").strip() or f"curl exit {proc.returncode}"
+        raise RuntimeError(err)
+    return proc.stdout
+
+
+def fetch_urllib(url: str, timeout: int = TIMEOUT) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "*/*"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
+
+
+def fetch(url: str, timeout: int = TIMEOUT) -> bytes:
+    last: Exception | None = None
+    for attempt in range(1, RETRIES + 1):
+        for method in (fetch_curl, fetch_urllib):
+            try:
+                return method(url, timeout=timeout)
+            except Exception as e:  # noqa: BLE001 — network retries
+                last = e
+                print(f"fetch attempt {attempt}/{RETRIES} via {method.__name__} failed: {e}", file=sys.stderr)
+        if attempt < RETRIES:
+            time.sleep(5 * attempt)
+    assert last is not None
+    raise last
 
 
 def parse_buoy(html: str) -> dict:
@@ -101,8 +143,16 @@ def main() -> int:
     if len(sys.argv) > 1:
         html = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
     else:
-        html = fetch(URL).decode("utf-8", "replace")
+        try:
+            html = fetch(URL).decode("utf-8", "replace")
+        except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as e:
+            # Keep the last good buoy.json; do not fail the scheduled job on a SoMAS blip.
+            print(f"SoMAS unreachable after retries ({e}); leaving buoy.json unchanged", file=sys.stderr)
+            return 0
     payload = parse_buoy(html)
+    if payload.get("windKt") is None:
+        print("parsed buoy missing windKt; leaving buoy.json unchanged", file=sys.stderr)
+        return 0
     payload["fetchedAt"] = datetime.now(ET).isoformat()
     OUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {OUT} observedEt={payload.get('observedEt')} windKt={payload.get('windKt')}")
