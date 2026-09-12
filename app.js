@@ -545,7 +545,8 @@
     // Weather Underground for 11705 (next 4 hours only).
     const hours = (hourly && hourly.hours) || [];
     const wxBlob = hours.map(function (h) {
-      return (h.phrase || "") + " " + (h.precipType || "");
+      // precipType is often "rain" even at 0% chance; only trust the phrase here.
+      return String(h.phrase || "");
     }).join(" ").toLowerCase();
     const maxPop = hours.reduce(function (m, h) {
       const p = h.precipChance == null ? 0 : Number(h.precipChance);
