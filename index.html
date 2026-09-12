@@ -64,17 +64,27 @@
     .wind-dir { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 36px; font-weight: 700; letter-spacing: .06em; line-height: 1; color: #fff8e8; text-transform: uppercase; }
     .gust { font-size: 16px; color: var(--cream2); margin-top: 6px; }
     .muted { color: #c9b88a; font-size: 13px; line-height: 1.4; }
-    .alert { background: #3a1d12; border-color: #c47a3a; color: #ffd7c2; }
+    .alert {
+      background: linear-gradient(180deg, #7a1f1f 0%, #4e1010 55%, #3a0c0c 100%);
+      border-color: #ff6b5a;
+      color: #ffe3dc;
+      box-shadow: inset 0 1px 0 rgba(255, 180, 160, 0.22), 0 0 18px rgba(220, 60, 40, 0.18);
+    }
+    .alert .label { color: #ffb4a8; }
     .alert-item + .alert-item { margin-top: 10px; }
     .alert-item { display: block; }
     .alert-item summary { cursor: pointer; list-style: none; }
     .alert-item summary::-webkit-details-marker { display: none; }
-    .alert-event { font-family: Oswald, "Arial Narrow", sans-serif; font-size: 20px; font-weight: 600; letter-spacing: .03em; }
-    .alert-when { margin-top: 2px; font-size: 16px; font-weight: 700; color: #ffe7c2; }
-    .alert-tap { margin-top: 4px; font-size: 12px; letter-spacing: .04em; color: #e7c9a0; }
+    .alert-event {
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      font-size: 20px; font-weight: 600; letter-spacing: .03em;
+      color: #fff5f2;
+    }
+    .alert-when { margin-top: 2px; font-size: 16px; font-weight: 700; color: #ffd0c4; }
+    .alert-tap { margin-top: 4px; font-size: 12px; letter-spacing: .04em; color: #ffb7a8; }
     .alert-body {
-      margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(196,122,58,.45);
-      white-space: pre-wrap; font-size: 15px; line-height: 1.45; color: #ffe8d6;
+      margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 140, 120, 0.4);
+      white-space: pre-wrap; font-size: 15px; line-height: 1.45; color: #ffe8e2;
       font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif;
     }
     .marine p { margin: 0 0 14px; font-size: 16px; line-height: 1.5; font-family: "Source Serif 4", Georgia, Palatino, "Times New Roman", serif; color: var(--cream); }
@@ -216,8 +226,9 @@
 
     .app-version {
       position: fixed;
-      right: 10px;
-      bottom: 8px;
+      left: 50%;
+      bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%);
       z-index: 20;
       margin: 0;
       padding: 0;
@@ -227,6 +238,7 @@
       color: rgba(243, 230, 200, 0.38);
       pointer-events: none;
       user-select: none;
+      text-align: center;
     }
 
   </style>
@@ -238,10 +250,10 @@
   </header>
   <div id="root">Loading…</div>
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
-  <div class="app-version" id="app-version">v22</div>
+  <div class="app-version" id="app-version">v23</div>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=22");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=23");
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
