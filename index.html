@@ -214,6 +214,21 @@
     .drift-light.stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 10px #eab308, inset 0 -2px 4px rgba(0,0,0,.25); }
     .drift-light.stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 10px #22c55e, inset 0 -2px 4px rgba(0,0,0,.25); }
 
+    .app-version {
+      position: fixed;
+      right: 10px;
+      bottom: 8px;
+      z-index: 20;
+      margin: 0;
+      padding: 0;
+      font-size: 10px;
+      letter-spacing: .08em;
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      color: rgba(243, 230, 200, 0.38);
+      pointer-events: none;
+      user-select: none;
+    }
+
   </style>
 </head>
 <body>
@@ -223,9 +238,10 @@
   </header>
   <div id="root">Loading…</div>
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
+  <div class="app-version" id="app-version">v22</div>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=21");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=22");
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
