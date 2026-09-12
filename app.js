@@ -15,6 +15,16 @@
   const MARINE_TGFTP = "https://tgftp.nws.noaa.gov/data/forecasts/marine/coastal/an/anz345.txt";
   const CWF_LIST = "https://api.weather.gov/products/types/CWF/locations/OKX";
   const ALERTS_URL = "https://api.weather.gov/alerts/active?zone=ANZ345,NYZ080";
+  // Weather Underground / weather.com hourly for Bayport 11705 (same source as WU site).
+  const WU_ZIP = "11705";
+  const WU_GEOCODE = "40.738,-73.052";
+  const WU_API_KEY = "53b89abc03d14d7ab89abc03d1dd7ab6";
+  const WU_HOURLY =
+    "https://api.weather.com/v3/wx/forecast/hourly/15day" +
+    "?apiKey=" + WU_API_KEY +
+    "&geocode=" + encodeURIComponent(WU_GEOCODE) +
+    "&units=e&language=en-US&format=json";
+  const NWS_HOURLY = "https://api.weather.gov/gridpoints/OKX/65,49/forecast/hourly";
   const TIDES_BASE =
     "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
     "?product=predictions&application=GSBBay&datum=MLLW&station=8514322" +
@@ -506,7 +516,7 @@
     };
   }
 
-  function stoplight(buoy, marine, flow, alerts) {
+  function stoplight(buoy, marine, flow, alerts, hourly) {
     const rank = { green: 0, yellow: 1, red: 2 };
     const factors = [];
 
@@ -531,20 +541,33 @@
       else factors.push(["waves", "yellow", gfmt(wave) + " ft"]);
     }
 
-    const blob = near.map(function (p) {
-      return (p.text || "") + " " + (p.name || "");
+    // Waves stay on marine CWF. Rain / t-storms / fog / sky use local hourly
+    // Weather Underground for 11705 (next 4 hours only).
+    const hours = (hourly && hourly.hours) || [];
+    const wxBlob = hours.map(function (h) {
+      return (h.phrase || "") + " " + (h.precipType || "");
     }).join(" ").toLowerCase();
-    // Only alerts already in effect, or starting within 4 hours, affect the light.
+    const maxPop = hours.reduce(function (m, h) {
+      const p = h.precipChance == null ? 0 : Number(h.precipChance);
+      return p > m ? p : m;
+    }, 0);
+    const maxQpf = hours.reduce(function (m, h) {
+      const q = h.qpf == null ? 0 : Number(h.qpf);
+      return q > m ? q : m;
+    }, 0);
+    const hasThunderIcon = hours.some(function (h) {
+      const c = Number(h.iconCode);
+      return c === 37 || c === 38 || c === 39 || c === 40 || c === 41 || c === 42 || c === 47;
+    });
+
     const activeAlerts = (alerts || []).filter(function (a) {
       return alertAffectsNow(a, 4);
     });
-    const alertBlob = activeAlerts.map(function (a) {
-      return (a.event || "") + " " + (a.headline || "");
-    }).join(" ").toLowerCase();
-    const alltxt = blob + " " + alertBlob;
 
-    const hasLightning = /\blightning\b/.test(alltxt);
-    const hasTstm = /\b(tstm|tstms|thunder|thunderstorms?|t-storms?)\b/.test(alltxt);
+    const hasLightning = /\blightning\b/.test(wxBlob);
+    const hasTstm =
+      hasThunderIcon ||
+      /\b(tstm|tstms|thunder|thunderstorms?|t-storms?|tstorms?)\b/.test(wxBlob);
     if (hasLightning) factors.push(["lightning", "red", "Lightning"]);
     else if (hasTstm) factors.push(["tstm", "yellow", "Thunderstorms in the forecast"]);
 
@@ -569,28 +592,27 @@
         break;
       }
     }
-    // Forecast-text fallback only from the next-4-hour periods, not future alerts.
-    if (!hasMarineWarn && /special weather|special marine|small craft|\bgale\b|storm warning|hurricane/.test(blob)) {
-      const label = blob.indexOf("special weather") >= 0 ? "Special Weather Statement" : "Marine watch/warning";
-      factors.push(["marine-warning", "red", label]);
-    }
 
-    const hasDenseFog = /dense fog/.test(alltxt);
-    const hasPatchyFog = /patchy fog/.test(alltxt);
-    const hasFog = /\bfog\b/.test(alltxt);
+    const hasDenseFog = /dense fog/.test(wxBlob);
+    const hasPatchyFog = /patchy fog/.test(wxBlob);
+    const hasFog = /\bfog\b/.test(wxBlob);
     if (hasDenseFog) factors.push(["fog", "red", "Dense fog"]);
     else if (hasPatchyFog) factors.push(["fog", "yellow", "Patchy fog"]);
 
     const rainHits = [];
     const rainRe = /\b((?:light\s+)?)(rain|showers?|drizzle)\b/g;
     let rm;
-    while ((rm = rainRe.exec(alltxt))) rainHits.push(rm);
-    const hasLightRain = rainHits.some(function (x) { return String(x[1] || "").trim() === "light"; });
-    const hasRain = rainHits.some(function (x) { return String(x[1] || "").trim() !== "light"; });
+    while ((rm = rainRe.exec(wxBlob))) rainHits.push(rm);
+    let hasLightRain = rainHits.some(function (x) { return String(x[1] || "").trim() === "light"; });
+    let hasRain = rainHits.some(function (x) { return String(x[1] || "").trim() !== "light"; });
+    if (!hasRain && !hasLightRain) {
+      if (maxQpf >= 0.05 || maxPop >= 40) hasRain = true;
+      else if (maxPop >= 20) hasLightRain = true;
+    }
     if (hasRain) factors.push(["rain", "yellow", "Rain in the forecast"]);
     else if (hasLightRain) factors.push(["rain", "green", "Light rain"]);
 
-    const hasFair = /\b(clear|sunny|fair|partly cloudy|mostly cloudy|mostly sunny|cloudy)\b/.test(alltxt);
+    const hasFair = /\b(clear|sunny|fair|partly cloudy|mostly cloudy|mostly sunny|cloudy|p cloudy)\b/.test(wxBlob);
     if (hasFair && !hasTstm && !hasRain && !hasLightRain && !hasFog) {
       factors.push(["sky", "green", "Fair / cloudy skies"]);
     }
@@ -719,6 +741,81 @@
     return tides;
   }
 
+  function parseWuLocalTime(s) {
+    if (!s) return null;
+    // WU uses -0400; Date needs -04:00
+    const norm = String(s).replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+    const d = new Date(norm);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function hoursInNext(hours, windowHours, now) {
+    now = now || new Date();
+    const t0 = now.getTime();
+    const t1 = t0 + (windowHours == null ? 4 : windowHours) * 3600 * 1000;
+    return (hours || []).filter(function (h) {
+      if (!h || !h.start) return false;
+      const start = h.start.getTime();
+      const end = start + 3600 * 1000;
+      return end > t0 && start <= t1;
+    });
+  }
+
+  function parseWuHourly(data) {
+    const times = (data && data.validTimeLocal) || [];
+    const out = [];
+    for (let i = 0; i < times.length; i++) {
+      const start = parseWuLocalTime(times[i]);
+      if (!start) continue;
+      out.push({
+        start: start,
+        phrase: (data.wxPhraseLong && data.wxPhraseLong[i]) || (data.wxPhraseShort && data.wxPhraseShort[i]) || "",
+        precipChance: data.precipChance ? data.precipChance[i] : null,
+        precipType: data.precipType ? data.precipType[i] : null,
+        qpf: data.qpf ? data.qpf[i] : null,
+        iconCode: data.iconCode ? data.iconCode[i] : null,
+      });
+    }
+    return {
+      source: "Weather Underground",
+      zip: WU_ZIP,
+      hours: hoursInNext(out, 4),
+    };
+  }
+
+  function parseNwsHourly(data) {
+    const periods = ((data && data.properties) || {}).periods || [];
+    const out = [];
+    for (const p of periods) {
+      const start = p.startTime ? new Date(p.startTime) : null;
+      if (!start || Number.isNaN(start.getTime())) continue;
+      const pop = p.probabilityOfPrecipitation && p.probabilityOfPrecipitation.value;
+      out.push({
+        start: start,
+        phrase: p.shortForecast || "",
+        precipChance: pop == null ? null : pop,
+        precipType: null,
+        qpf: null,
+        iconCode: null,
+      });
+    }
+    return {
+      source: "NWS hourly",
+      zip: WU_ZIP,
+      hours: hoursInNext(out, 4),
+    };
+  }
+
+  async function fetchHourlyWx() {
+    try {
+      return parseWuHourly(await getJson(WU_HOURLY));
+    } catch (e1) {
+      return parseNwsHourly(
+        await getJson(NWS_HOURLY, { headers: { Accept: "application/geo+json", "User-Agent": "GSBBay/1.0" } })
+      );
+    }
+  }
+
   function formatAlertWhen(iso) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
@@ -782,6 +879,7 @@
       marine: null,
       tides: null,
       alerts: [],
+      hourly: null,
       radar: {
         site: "KOKX",
         label: "NWS Upton radar",
@@ -811,6 +909,9 @@
       fetchAlerts().then(function (a) { out.alerts = a; }).catch(function (e) {
         out.errors.push("alerts: " + (e && e.message ? e.message : e));
       }),
+      fetchHourlyWx().then(function (h) { out.hourly = h; }).catch(function (e) {
+        out.errors.push("hourly: " + (e && e.message ? e.message : e));
+      }),
     ]);
 
     try { out.flow = windTideFlow(out.buoy, out.tides); }
@@ -820,7 +921,7 @@
       out.errors.push("drift: " + (e && e.message ? e.message : e));
       out.drift = { color: "yellow", factors: [] };
     }
-    try { out.stoplight = stoplight(out.buoy, out.marine, out.flow, out.alerts); }
+    try { out.stoplight = stoplight(out.buoy, out.marine, out.flow, out.alerts, out.hourly); }
     catch (e) {
       out.errors.push("stoplight: " + (e && e.message ? e.message : e));
       out.stoplight = { color: "yellow", factors: [] };
@@ -847,5 +948,7 @@
     mphOf: mphOf,
     periodTimeRange: periodTimeRange,
     periodsInNextHours: periodsInNextHours,
+    fetchHourlyWx: fetchHourlyWx,
+    parseWuHourly: parseWuHourly,
   };
 })();

@@ -1,4 +1,4 @@
-const CACHE = "gsb-v20";
+const CACHE = "gsb-v21";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(() => self.skipWaiting()));
 });
@@ -22,7 +22,11 @@ self.addEventListener("fetch", (e) => {
     h === "cors.sh" ||
     h.endsWith(".cors.sh") ||
     h === "allorigins.win" ||
-    h.endsWith(".allorigins.win");
+    h.endsWith(".allorigins.win") ||
+    h === "weather.com" ||
+    h.endsWith(".weather.com") ||
+    h === "wunderground.com" ||
+    h.endsWith(".wunderground.com");
   const isHtml =
     e.request.mode === "navigate" ||
     u.pathname.endsWith(".html") ||
