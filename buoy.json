@@ -3,7 +3,7 @@
   "source": "https://po.somas.stonybrook.edu/GSB/B1RT.html",
   "observedEt": "10:30 PM",
   "observedIso": "2026-09-13T22:30:00-04:00",
-  "ageMin": 48,
+  "ageMin": 64,
   "windKt": 8.14,
   "gustKt": 11.24,
   "windDir": "WSW",
@@ -11,5 +11,5 @@
   "airF": 74.28,
   "waterF": 75.34,
   "humidity": 95.7,
-  "fetchedAt": "2026-09-13T23:18:40.195924-04:00"
+  "fetchedAt": "2026-09-13T23:34:48.514041-04:00"
 }
