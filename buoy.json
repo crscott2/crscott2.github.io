@@ -1,15 +1,15 @@
 {
   "name": "GSB Buoy #1",
   "source": "https://po.somas.stonybrook.edu/GSB/B1RT.html",
-  "observedEt": "1:30 PM",
-  "observedIso": "2026-09-15T13:30:00-04:00",
-  "ageMin": 62,
-  "windKt": 7.89,
-  "gustKt": 10.79,
+  "observedEt": "2:00 PM",
+  "observedIso": "2026-09-15T14:00:00-04:00",
+  "ageMin": 50,
+  "windKt": 6.49,
+  "gustKt": 10.48,
   "windDir": "SE",
-  "windDeg": 145,
-  "airF": 65.01,
-  "waterF": 73.13,
-  "humidity": 63.5,
-  "fetchedAt": "2026-09-15T14:32:04.234236-04:00"
+  "windDeg": 143,
+  "airF": 65.12,
+  "waterF": 73.21,
+  "humidity": 62.7,
+  "fetchedAt": "2026-09-15T14:50:09.620001-04:00"
 }
