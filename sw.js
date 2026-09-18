@@ -1,4 +1,4 @@
-const CACHE = "gsb-v23";
+const CACHE = "gsb-v24";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(() => self.skipWaiting()));
 });
