@@ -8,9 +8,17 @@ on:
 permissions:
   contents: write
 
+# Keep only the newest fetch when schedules overlap or runners back up after an outage.
+concurrency:
+  group: fetch-somas-buoy
+  cancel-in-progress: true
+
 jobs:
   fetch:
-    runs-on: ubuntu-latest
+    # Pin image: ubuntu-latest is migrating to 26 (Oct 19, 2026) and hosted
+    # capacity for the floating label was unavailable during Actions outages.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
