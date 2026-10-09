@@ -661,7 +661,9 @@
   }
 
   async function tryBuoySnapshot() {
-    const snap = await getJson("./buoy.json?t=" + Date.now());
+    // Pages outside the site root (e.g. /frame/) set window.GSB_BASE = "../".
+    const base = (typeof window !== "undefined" && window.GSB_BASE) || "./";
+    const snap = await getJson(base + "buoy.json?t=" + Date.now());
     if (!snapFreshEnough(snap)) {
       throw new Error("buoy snapshot too old (" + (snap && snap.ageMin) + " min)");
     }

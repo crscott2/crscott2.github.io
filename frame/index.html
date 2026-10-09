@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#0b1c33" />
+  <meta name="robots" content="noindex" />
+  <meta name="gsb-frame-build" content="1" />
+  <title>GSB Frame</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!--
+    GSB Conditions wall-frame view. Designed for a 1280x800 landscape frame
+    (BIUFRAME 10.1", Android WebView). The 1280x800 stage scales to fit any
+    viewport, so it also previews fine on a laptop.
+    URL params for testing: ?theme=day|night  ?noshift=1
+  -->
+  <style>
+    :root {
+      --bg1:#163153; --bg2:#0b1c33; --card1:#152a48; --card2:#10233c;
+      --line:rgba(196,163,90,.55); --brass:#c4a35a; --cream:#f3e6c8; --cream2:#d9c79c;
+      --hi:#fff8e8; --muted:#a8996f; --green:#3ddc84; --yellow:#f5c518; --red:#ff5a4a;
+      --flow-with:#8fe0a8; --flow-against:#ffb087; --flow-cross:#ffd36a;
+      --tide-line:#7fc4ff; --tide-fill:rgba(127,196,255,.16); --tide-grid:rgba(243,230,200,.12);
+      --now:#8fe0a8; --alert1:#7a1f1f; --alert2:#4e1010; --alert-tx:#ffe3dc;
+    }
+    body.night {
+      --bg1:#05080d; --bg2:#000000; --card1:#0a0e14; --card2:#06090d;
+      --line:rgba(150,110,60,.32); --brass:#8a6a3a; --cream:#b39c74; --cream2:#8f7c5c;
+      --hi:#cdb48a; --muted:#6c5d44; --green:#2f9e5f; --yellow:#b38f1a; --red:#b8433a;
+      --flow-with:#6aa77c; --flow-against:#b97f62; --flow-cross:#b3974c;
+      --tide-line:#5d7f9c; --tide-fill:rgba(93,127,156,.12); --tide-grid:rgba(179,156,116,.10);
+      --now:#6aa77c; --alert1:#3a1010; --alert2:#240909; --alert-tx:#c9a79f;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+      background: #000; cursor: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: Oswald, "Roboto Condensed", "Arial Narrow", Roboto, Arial, sans-serif;
+      color: var(--cream);
+    }
+    #stage {
+      position: absolute; left: 0; top: 0; width: 1280px; height: 800px;
+      -webkit-transform-origin: 0 0; transform-origin: 0 0;
+      background: radial-gradient(1100px 620px at 50% -12%, var(--bg1) 0%, var(--bg2) 62%);
+      overflow: hidden;
+    }
+    /* Inner frame drifts a few px every few minutes (anti burn-in). */
+    #inner {
+      position: absolute; left: 18px; top: 14px; width: 1244px; height: 772px;
+      display: -webkit-box; display: -webkit-flex; display: flex;
+      -webkit-flex-direction: column; flex-direction: column;
+      -webkit-transition: -webkit-transform 20s ease-in-out; transition: transform 20s ease-in-out;
+    }
+    .k {
+      font-size: 17px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--brass);
+    }
+    /* Header */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 92px; flex: 0 0 92px; padding: 0 6px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .title h1 {
+      margin: 0; font-size: 34px; font-weight: 700; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--hi); line-height: 1.1;
+    }
+    .title .place { font-size: 17px; letter-spacing: .14em; color: var(--cream2); margin-top: 4px; text-transform: uppercase; }
+    .go { display: flex; align-items: center; }
+    .lamps {
+      display: flex; align-items: center; padding: 8px 12px;
+      background: linear-gradient(180deg, #3a2e1c 0%, #15100a 60%, #0b0805 100%);
+      border: 2px solid var(--brass); border-radius: 12px;
+    }
+    .lamp { width: 34px; height: 34px; border-radius: 50%; background: #1a140c; opacity: .3; margin: 0 4px; }
+    .on-red .lamp.red { background: var(--red); opacity: 1; box-shadow: 0 0 18px var(--red); }
+    .on-yellow .lamp.yellow { background: var(--yellow); opacity: 1; box-shadow: 0 0 18px var(--yellow); }
+    .on-green .lamp.green { background: var(--green); opacity: 1; box-shadow: 0 0 18px var(--green); }
+    .go-text { margin-left: 16px; max-width: 360px; }
+    .go-word { font-size: 30px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--hi); line-height: 1.05; }
+    .go-why { font-size: 15px; color: var(--cream2); letter-spacing: .04em; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clock { text-align: right; }
+    .clock .time { font-size: 54px; font-weight: 600; color: var(--hi); line-height: 1; letter-spacing: .02em; }
+    .clock .time small { font-size: 24px; margin-left: 6px; color: var(--cream2); font-weight: 500; }
+    .clock .date { font-size: 17px; letter-spacing: .14em; text-transform: uppercase; color: var(--cream2); margin-top: 4px; }
+
+    /* Alert banner */
+    body.night .lamp { box-shadow: none !important; }
+    body.night .lamps { opacity: .8; }
+    .water-note { font-size: 15px; letter-spacing: .06em; color: var(--muted); margin-top: 2px; }
+    #alert {
+      display: none; flex: 0 0 auto; margin-top: 12px; padding: 10px 18px;
+      background: linear-gradient(180deg, var(--alert1), var(--alert2));
+      border: 2px solid var(--red); border-radius: 10px; color: var(--alert-tx);
+      font-size: 24px; font-weight: 600; letter-spacing: .03em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #alert.show { display: block; }
+    #alert .when { font-weight: 400; font-size: 20px; opacity: .9; margin-left: 10px; }
+
+    /* Main grid */
+    main {
+      flex: 1 1 auto; min-height: 0; margin-top: 14px;
+      display: grid; grid-template-columns: 440px 1fr 1fr; grid-template-rows: 1fr 1fr;
+      grid-gap: 14px; gap: 14px;
+    }
+    .card {
+      position: relative; min-height: 0; overflow: hidden;
+      background: linear-gradient(180deg, var(--card1) 0%, var(--card2) 100%);
+      border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px;
+    }
+    .big { font-size: 112px; font-weight: 600; line-height: .95; color: var(--hi); letter-spacing: -.01em; }
+    .unit { font-size: 30px; font-weight: 500; color: var(--cream2); letter-spacing: .1em; margin-left: 8px; text-transform: uppercase; }
+    .mid { font-size: 76px; font-weight: 600; line-height: 1; color: var(--hi); }
+    .sub { font-size: 22px; color: var(--cream); margin-top: 8px; letter-spacing: .02em; }
+    .muted { color: var(--muted); }
+
+    /* Wind */
+    #wind { grid-row: 1 / span 2; grid-column: 1; display: flex; flex-direction: column; }
+    .wind-top { display: flex; align-items: baseline; margin-top: 6px; }
+    .wind-gust { font-size: 30px; color: var(--cream); margin-top: 2px; letter-spacing: .02em; }
+    .wind-gust b { color: var(--hi); font-weight: 600; font-size: 40px; }
+    .dial-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; }
+    .dial { width: 300px; height: 300px; }
+    .wind-from { text-align: center; font-size: 26px; letter-spacing: .12em; text-transform: uppercase; color: var(--cream2); }
+    .wind-from b { color: var(--hi); font-size: 36px; font-weight: 700; letter-spacing: .08em; }
+
+    /* Small stat cards */
+    .stat { display: flex; flex-direction: column; justify-content: space-between; }
+    .stat .row { display: flex; align-items: baseline; }
+    .flow { font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: .02em; margin-top: 8px; }
+    .flow.with, .flow.slack_high, .flow.slack_low, .flow.turning { color: var(--flow-with); }
+    .flow.against { color: var(--flow-against); }
+    .flow.cross { color: var(--flow-cross); }
+    .two { display: flex; }
+    .two > div { flex: 1 1 0; }
+    .two > div + div { border-left: 1px solid var(--line); padding-left: 18px; }
+
+    /* Tide */
+    #tide { grid-column: 2 / span 2; grid-row: 2; display: flex; padding: 14px 18px 12px; }
+    .tide-info { flex: 0 0 262px; display: flex; flex-direction: column; justify-content: space-between; padding-right: 14px; }
+    .tide-state { font-size: 42px; font-weight: 600; color: var(--hi); line-height: 1; margin-top: 8px; }
+    .tide-state .arrow { color: var(--tide-line); }
+    .tide-next { font-size: 24px; color: var(--cream); line-height: 1.35; }
+    .tide-next b { color: var(--hi); font-weight: 600; font-size: 30px; }
+    .tide-next > div { white-space: nowrap; }
+    .tide-next .ft { font-size: 20px; }
+    .tide-next .lbl { display: inline-block; width: 62px; color: var(--brass); font-size: 18px; letter-spacing: .14em; text-transform: uppercase; }
+    .tide-chart { flex: 1 1 auto; min-width: 0; }
+    .tide-chart svg { width: 100%; height: 100%; display: block; }
+
+    /* Footer */
+    footer {
+      flex: 0 0 34px; height: 34px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 17px; letter-spacing: .06em; color: var(--muted);
+    }
+    .badge { display: none; margin-right: 12px; padding: 2px 10px; border-radius: 6px; font-weight: 600; letter-spacing: .1em; color: #1a1408; background: var(--yellow); }
+    .badge.show { display: inline-block; }
+    .wx { font-size: 22px; color: var(--cream); line-height: 1.3; margin-top: 8px; }
+    .wx-row { display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 5px; margin-top: 5px; font-size: 20px; }
+    .wx-row span:first-child { color: var(--brass); width: 74px; flex: 0 0 74px; }
+    .wx-row span:nth-child(2) { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+    .wx-row span:last-child { color: var(--cream2); flex: 0 0 auto; }
+    #loading { position: absolute; left: 0; right: 0; top: 360px; text-align: center; font-size: 34px; letter-spacing: .2em; color: var(--cream2); text-transform: uppercase; }
+  </style>
+</head>
+<body>
+<div id="stage">
+  <div id="inner">
+    <header>
+      <div class="title">
+        <h1>GSB Conditions</h1>
+        <div class="place">Great South Bay · Patchogue–Sayville</div>
+      </div>
+      <div class="go">
+        <div class="lamps" id="lamps"><div class="lamp red"></div><div class="lamp yellow"></div><div class="lamp green"></div></div>
+        <div class="go-text"><div class="go-word" id="go-word">—</div><div class="go-why" id="go-why"></div></div>
+      </div>
+      <div class="clock"><div class="time" id="time">--:--</div><div class="date" id="date"></div></div>
+    </header>
+    <div id="alert"></div>
+    <main>
+      <section class="card" id="wind">
+        <div class="k">Wind · SoMAS buoy</div>
+        <div class="wind-top"><span class="big" id="wind-mph">—</span><span class="unit">mph</span></div>
+        <div class="wind-gust">Gusts <b id="gust-mph">—</b> mph <span class="muted" id="wind-kt"></span></div>
+        <div class="dial-wrap"><svg class="dial" id="dial" viewBox="0 0 300 300"></svg></div>
+        <div class="wind-from">From <b id="wind-dir">—</b> <span id="wind-deg" class="muted"></span></div>
+      </section>
+      <section class="card stat" id="temps">
+        <div class="two">
+          <div><div class="k">Water</div><div class="mid" id="water">—</div><div class="water-note" id="water-note"></div></div>
+          <div><div class="k">Air</div><div class="mid" id="air">—</div></div>
+        </div>
+        <div>
+          <div class="k" style="margin-top:6px">Waves (NWS bay forecast)</div>
+          <div class="row"><span class="mid" id="waves" style="font-size:56px">—</span><span class="unit" id="waves-unit" style="font-size:24px">ft</span></div>
+        </div>
+      </section>
+      <section class="card stat" id="drift">
+        <div>
+          <div class="k">Drift · wind vs tide</div>
+          <div class="flow" id="flow">—</div>
+          <div class="sub" id="flow-sub"></div>
+        </div>
+        <div id="wx"></div>
+      </section>
+      <section class="card" id="tide">
+        <div class="tide-info">
+          <div>
+            <div class="k">Patchogue tide</div>
+            <div class="tide-state" id="tide-state">—</div>
+          </div>
+          <div class="tide-next" id="tide-next"></div>
+        </div>
+        <div class="tide-chart" id="tide-chart"></div>
+      </section>
+    </main>
+    <footer>
+      <div><span class="badge" id="stale">STALE</span><span id="updated">Loading…</span></div>
+      <div id="sources">SoMAS · NOAA CO-OPS · NWS</div>
+    </footer>
+  </div>
+</div>
+<script>window.GSB_BASE = "../";</script>
+<script src="../app.js"></script>
+<script src="frame.js"></script>
+</body>
+</html>
