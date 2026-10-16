@@ -226,7 +226,7 @@
     $("dial").innerHTML = dialSvg(num(b.windDeg), mph);
 
     $("water").textContent = num(b.waterF) != null ? Math.round(b.waterF) + "°" : "—";
-    $("water-note").textContent = b.waterNote || "";
+    $("water-note").textContent = b.waterNote || (b.waterAsOf ? "as of " + b.waterAsOf : "");
     $("air").textContent = num(b.airF) != null ? Math.round(b.airF) + "°" : "—";
     var wv = wavesOf(d.marine);
     $("waves").textContent = wv && wv.label ? wv.label : "—";

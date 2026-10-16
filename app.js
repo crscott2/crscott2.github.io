@@ -8,7 +8,6 @@
   const BUOY_URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html";
   // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Order: SoMAS direct,
   // buoy.json (Actions) first, then NWS 44069, cors proxies, then direct SoMAS.
-  const BUOY_CORS_SH = "https://proxy.cors.sh/" + BUOY_URL;
   const BUOY_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BUOY_URL);
   const NWS_44069 = "https://api.weather.gov/stations/44069/observations/latest";
   const NDBC_44069 = "https://www.ndbc.noaa.gov/station_page.php?station=44069";
@@ -660,44 +659,46 @@
     return snap.ageMin != null && snap.ageMin <= 90;
   }
 
-  async function tryBuoySnapshot() {
-    // Pages outside the site root (e.g. /frame/) set window.GSB_BASE = "../".
-    const base = (typeof window !== "undefined" && window.GSB_BASE) || "./";
-    const snap = await getJson(base + "buoy.json?t=" + Date.now());
-    if (!snapFreshEnough(snap)) {
-      throw new Error("buoy snapshot too old (" + (snap && snap.ageMin) + " min)");
-    }
-    return snap;
+  function obsMs(b) {
+    const t = b && b.observedIso ? Date.parse(b.observedIso) : NaN;
+    return Number.isNaN(t) ? 0 : t;
   }
 
   async function fetchBuoy() {
-    // Phone path: same-origin buoy.json (Actions every ~10m) first, then NWS
-    // 44069, then CORS proxies / direct SoMAS. Snapshot is accepted when
-    // fetched within 30m or observation age is under 90m.
+    // 1) same-origin buoy.json (GitHub Action; runs irregularly, often hours apart)
+    // 2) NWS API 44069 (same buoy, no water temp)  3) allorigins proxy → SoMAS HTML
+    // If every source is old (buoy itself offline), use the newest one we got.
+    let snap = null;
     try {
-      return await tryBuoySnapshot();
-    } catch (eSnap) {
+      snap = await getJson((window.GSB_BASE || "./") + "buoy.json?t=" + Date.now());
+      if (snap && !snap.sourceLabel) snap.sourceLabel = "SoMAS";
+      if (snapFreshEnough(snap)) return snap;
+    } catch (e) { snap = null; }
+    let alt = null;
+    try {
+      alt = parseNws44069(
+        await getJson(NWS_44069, { headers: { Accept: "application/geo+json" } })
+      );
+      alt.sourceLabel = "NWS 44069";
+    } catch (eNws) {
       try {
-        return parseNws44069(
-          await getJson(NWS_44069, {
-            headers: {
-              Accept: "application/geo+json",
-              "User-Agent": "GSBBay/1.0",
-            },
-          })
-        );
-      } catch (eNws) {
-        try {
-          return parseBuoy(await getText(BUOY_CORS_SH));
-        } catch (eCors) {
-          try {
-            return parseBuoy(await getText(BUOY_PROXY));
-          } catch (eProxy) {
-            return parseBuoy(await getText(BUOY_URL));
-          }
-        }
-      }
+        alt = parseBuoy(await getText(BUOY_PROXY));
+        alt.sourceLabel = "SoMAS";
+      } catch (eProxy) { alt = null; }
     }
+    let best = alt;
+    if (snap && snap.windKt != null && (!alt || obsMs(snap) >= obsMs(alt))) best = snap;
+    if (!best) throw new Error("all buoy sources failed");
+    if (snap && obsMs(snap)) {
+      snap.ageMin = Math.floor((Date.now() - obsMs(snap)) / 60000);
+    }
+    // Water temp backfill from buoy.json (≤6 h old), labeled with its time.
+    if (best !== snap && best.waterF == null && snap && snap.waterF != null && obsMs(snap) &&
+        Date.now() - obsMs(snap) <= 6 * 3600000) {
+      best.waterF = snap.waterF;
+      best.waterAsOf = snap.observedEt;
+    }
+    return best;
   }
 
   async function fetchMarine() {

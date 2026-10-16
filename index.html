@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
   <title>GSB</title>
-  <meta name="gsb-build" content="18" />
+  <meta name="gsb-build" content="19" />
   <style>
     :root { color-scheme: dark; --navy:#0b1c33; --navy2:#12263f; --cream:#f3e6c8; --cream2:#e8d5a8; --brass:#c4a35a; --brass-dk:#8a6a2f; --ink:#1a1408; }
     * { box-sizing: border-box; }
@@ -250,10 +250,10 @@
   </header>
   <div id="root">Loading…</div>
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
-  <div class="app-version" id="app-version">v24</div>
+  <div class="app-version" id="app-version">v25</div>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=24");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=25");
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -399,16 +399,19 @@
         }
         let obsLine = "Observation age unknown";
         if (age != null) {
-          obsLine = "SoMAS reading " + age + " min ago" + (b.observedEt ? " (" + b.observedEt + " ET)" : "");
+          const src = b.sourceLabel || "Buoy";
+          obsLine = stale
+            ? "Buoy hasn't reported since " + (b.observedEt ? b.observedEt + " ET" : age + " min ago") + " (" + src + ", " + (age >= 120 ? Math.round(age / 60) + " h" : age + " min") + " ago)"
+            : src + " reading " + age + " min ago" + (b.observedEt ? " (" + b.observedEt + " ET)" : "");
         } else if (b.observedEt) {
           obsLine = "as of " + b.observedEt + " ET";
         }
         let refreshLine = "";
-        if (b.fetchedAt) {
-          const ft = Date.parse(b.fetchedAt);
+        if (d.fetchedAt) {
+          const ft = Date.parse(d.fetchedAt);
           if (!Number.isNaN(ft)) {
             const fetchAge = Math.floor((Date.now() - ft) / 60000);
-            refreshLine = fetchAge < 2 ? "app refreshed just now" : ("app refreshed " + fetchAge + " min ago");
+            refreshLine = fetchAge < 2 ? "app checked just now" : ("app checked " + fetchAge + " min ago");
           }
         }
         const gustMph = b.gustMph != null ? b.gustMph : (b.gustKt != null ? kt(b.gustKt * 1.15078) : null);
@@ -426,7 +429,7 @@
           </div>
           <div class="buoy-grid">
             <div class="buoy-cell"><div class="buoy-k">Air</div><div class="buoy-v">${f(b.airF)}°</div></div>
-            <div class="buoy-cell"><div class="buoy-k">Water</div><div class="buoy-v">${f(b.waterF)}°</div></div>
+            <div class="buoy-cell"><div class="buoy-k">Water</div><div class="buoy-v">${f(b.waterF)}°</div>${b.waterAsOf ? `<div class="muted">as of ${esc(b.waterAsOf)}</div>` : ""}</div>
             <div class="buoy-cell"><div class="buoy-k">Gust</div><div class="buoy-v">${gustMph != null ? gustMph : "—"}</div></div>
           </div>
           <div class="age">
