@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
   <title>GSB</title>
-  <meta name="gsb-build" content="19" />
+  <meta name="gsb-build" content="20" />
   <style>
     :root { color-scheme: dark; --navy:#0b1c33; --navy2:#12263f; --cream:#f3e6c8; --cream2:#e8d5a8; --brass:#c4a35a; --brass-dk:#8a6a2f; --ink:#1a1408; }
     * { box-sizing: border-box; }
@@ -224,6 +224,12 @@
     .drift-light.stoplight.on-yellow .lamp.yellow { background: #eab308; opacity: 1; box-shadow: 0 0 10px #eab308, inset 0 -2px 4px rgba(0,0,0,.25); }
     .drift-light.stoplight.on-green .lamp.green { background: #22c55e; opacity: 1; box-shadow: 0 0 10px #22c55e, inset 0 -2px 4px rgba(0,0,0,.25); }
 
+    .wind-src { margin: -4px 0 12px; font-size: 14px; line-height: 1.35; color: var(--cream2); }
+    .wind-src.airport { color: #9fd3ff; }
+    .wind-src.model { color: #d8b4fe; font-style: italic; }
+    .card.buoy.wind-model .buoy-speed .big, .card.buoy.wind-model .wind-dir { color: #e9d5ff; }
+    .card.buoy.wind-airport .buoy-speed .big { color: #dbeeff; }
+
     .app-version {
       position: fixed;
       left: 50%;
@@ -250,10 +256,10 @@
   </header>
   <div id="root">Loading…</div>
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
-  <div class="app-version" id="app-version">v25</div>
+  <div class="app-version" id="app-version">v26</div>
   <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=25");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=26");
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -357,7 +363,7 @@
         const fl = d.flow || {};
         const alerts = d.alerts || [];
         const age = b.ageMin;
-        const stale = age != null && age > 90;
+        const stale = !d.buoy || (age != null && age > 90);
         let html = "";
         const sl = d.stoplight || {};
         const slc = sl.color || "yellow";
@@ -397,7 +403,7 @@
             <div class="muted">${fl.detail || ""} Wind from ${fl.windFrom || "—"}.</div>
           </div>`;
         }
-        let obsLine = "Observation age unknown";
+        let obsLine = d.buoy ? "Observation age unknown" : "Buoy and backup wind unavailable right now";
         if (age != null) {
           const src = b.sourceLabel || "Buoy";
           obsLine = stale
@@ -416,8 +422,12 @@
         }
         const gustMph = b.gustMph != null ? b.gustMph : (b.gustKt != null ? kt(b.gustKt * 1.15078) : null);
         const windMphDisp = b.windMph != null ? b.windMph : kt(b.windKt != null ? b.windKt * 1.15078 : null);
-        html += `<div class="card buoy">
-          <div class="label">SoMAS Buoy</div>
+        const wb = b.windBackup;
+        const windSrc = wb
+          ? `<div class="wind-src ${wb.kind}">Wind: ${esc(wb.label)}${wb.note ? " (" + esc(wb.note) + ")" : ""}${b.buoyWind && b.buoyWind.observedEt ? " · buoy wind is stale" : ""}</div>`
+          : "";
+        html += `<div class="card buoy${wb ? " wind-" + wb.kind : ""}">
+          <div class="label">${wb ? "Wind (backup) · SoMAS Buoy" : "SoMAS Buoy"}</div>
           <div class="buoy-hero">
             <div class="buoy-speed">
               <div class="big">${windMphDisp}</div>
@@ -427,13 +437,14 @@
               <div class="wind-dir">${b.windDir || "—"}</div>
             </div>
           </div>
+          ${windSrc}
           <div class="buoy-grid">
             <div class="buoy-cell"><div class="buoy-k">Air</div><div class="buoy-v">${f(b.airF)}°</div></div>
             <div class="buoy-cell"><div class="buoy-k">Water</div><div class="buoy-v">${f(b.waterF)}°</div>${b.waterAsOf ? `<div class="muted">as of ${esc(b.waterAsOf)}</div>` : ""}</div>
             <div class="buoy-cell"><div class="buoy-k">Gust</div><div class="buoy-v">${gustMph != null ? gustMph : "—"}</div></div>
           </div>
           <div class="age">
-            <div class="muted ${stale ? "stale" : ""}">${stale ? "STALE · " : ""}${obsLine}</div>
+            <div class="muted ${stale ? "stale" : ""}">${stale ? "STALE · " : ""}${wb ? "Air/water: " : ""}${obsLine}</div>
             ${refreshLine ? `<div class="muted">${refreshLine}</div>` : ""}
           </div>
         </div>`;
@@ -467,7 +478,7 @@
       }
     }
     load();
-    window.addEventListener("pageshow", () => { load(); });
+    window.addEventListener("pageshow", (e) => { if (e.persisted) load(); });
     document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
   </script>
 </body>

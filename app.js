@@ -4,12 +4,24 @@
 
   const ET = "America/New_York";
   const KT_TO_MPH = 1.150779448;
+  // Optional Cloudflare Worker (see worker/README.md). Empty = not used.
+  // When set, it becomes the first buoy source; buoy.json (Action) stays as backup.
+  const WORKER_URL = "";
   const PLACE = "Great South Bay · Patchogue–Sayville";
   const BUOY_URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html";
   // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Order: SoMAS direct,
   // buoy.json (Actions) first, then NWS 44069, cors proxies, then direct SoMAS.
   const BUOY_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BUOY_URL);
   const NWS_44069 = "https://api.weather.gov/stations/44069/observations/latest";
+  // Backup wind when the buoy wind is stale (same 90-min threshold the UI uses).
+  const BUOY_STALE_MIN = 90;
+  const AIRPORTS = [
+    { id: "KISP", name: "Islip Airport" },
+    { id: "KHWV", name: "Brookhaven Airport" },
+  ];
+  const OPEN_METEO =
+    "https://api.open-meteo.com/v1/forecast?latitude=40.7097&longitude=-73.0578" +
+    "&current=wind_speed_10m,wind_gusts_10m,wind_direction_10m&wind_speed_unit=kn&timezone=America%2FNew_York";
   const NDBC_44069 = "https://www.ndbc.noaa.gov/station_page.php?station=44069";
   const MARINE_TGFTP = "https://tgftp.nws.noaa.gov/data/forecasts/marine/coastal/an/anz345.txt";
   const CWF_LIST = "https://api.weather.gov/products/types/CWF/locations/OKX";
@@ -523,10 +535,11 @@
 
     const kt = (buoy || {}).windKt;
     if (kt != null) {
-      const mph = mphOf(kt);
-      if (kt > 15) factors.push(["wind", "red", mph + " mph"]);
-      else if (kt < 10) factors.push(["wind", "green", mph + " mph"]);
-      else factors.push(["wind", "yellow", mph + " mph"]);
+      const bw = (buoy || {}).windBackup;
+      const mph = mphOf(kt) + " mph" + (bw ? " (backup wind: " + bw.short + ")" : "");
+      if (kt > 15) factors.push(["wind", "red", mph]);
+      else if (kt < 10) factors.push(["wind", "green", mph]);
+      else factors.push(["wind", "yellow", mph]);
     }
 
     // Near-term CWF only (~next 4 hours) so evening tstm/rain do not paint a fine morning yellow/red.
@@ -668,6 +681,15 @@
     // 1) same-origin buoy.json (GitHub Action; runs irregularly, often hours apart)
     // 2) NWS API 44069 (same buoy, no water temp)  3) allorigins proxy → SoMAS HTML
     // If every source is old (buoy itself offline), use the newest one we got.
+    const workerUrl = (typeof window !== "undefined" && window.GSB_WORKER_URL) || WORKER_URL;
+    let fromWorker = null;
+    if (workerUrl) {
+      try {
+        fromWorker = await getJson(workerUrl);
+        if (!fromWorker || !fromWorker.ok || fromWorker.windKt == null) fromWorker = null;
+        else if (obsMs(fromWorker) && Date.now() - obsMs(fromWorker) <= BUOY_STALE_MIN * 60000) return fromWorker;
+      } catch (eW) { fromWorker = null; }
+    }
     let snap = null;
     try {
       snap = await getJson((window.GSB_BASE || "./") + "buoy.json?t=" + Date.now());
@@ -686,6 +708,7 @@
         alt.sourceLabel = "SoMAS";
       } catch (eProxy) { alt = null; }
     }
+    if (fromWorker && (!alt || obsMs(fromWorker) > obsMs(alt))) alt = fromWorker;
     let best = alt;
     if (snap && snap.windKt != null && (!alt || obsMs(snap) >= obsMs(alt))) best = snap;
     if (!best) throw new Error("all buoy sources failed");
@@ -876,6 +899,97 @@
     return out;
   }
 
+  function buoyWindStale(b) {
+    if (!b || b.windKt == null || Number.isNaN(Number(b.windKt))) return true;
+    let age = b.ageMin;
+    if (b.observedIso) {
+      const t = Date.parse(b.observedIso);
+      if (!Number.isNaN(t)) age = Math.floor((Date.now() - t) / 60000);
+    }
+    return age == null || age > BUOY_STALE_MIN;
+  }
+
+  async function fetchAirport(ap) {
+    const data = await getJson("https://api.weather.gov/stations/" + ap.id + "/observations/latest", {
+      headers: { Accept: "application/geo+json" },
+    });
+    const p = (data && data.properties) || {};
+    const t = p.timestamp ? Date.parse(p.timestamp) : NaN;
+    const kmh = nwsVal(p.windSpeed);
+    if (Number.isNaN(t) || kmh == null) throw new Error(ap.id + ": no wind");
+    const ageMin = Math.floor((Date.now() - t) / 60000);
+    if (ageMin > BUOY_STALE_MIN) throw new Error(ap.id + ": old (" + ageMin + " min)");
+    const gust = nwsVal(p.windGust);
+    const deg = nwsVal(p.windDirection);
+    return {
+      kind: "airport",
+      station: ap.id,
+      name: ap.name,
+      t: t,
+      ageMin: ageMin,
+      windKt: kmh / 1.852,
+      gustKt: gust != null ? gust / 1.852 : null,
+      windDeg: deg != null ? Math.round(deg) : null,
+      windDir: compass16(deg),
+      observedEt: formatEtClock(new Date(t)),
+    };
+  }
+
+  async function fetchModelWind() {
+    const data = await getJson(OPEN_METEO);
+    const c = (data && data.current) || {};
+    if (c.wind_speed_10m == null) throw new Error("open-meteo: no wind");
+    const deg = c.wind_direction_10m;
+    return {
+      kind: "model",
+      name: "Open-Meteo",
+      windKt: Number(c.wind_speed_10m),
+      gustKt: c.wind_gusts_10m != null ? Number(c.wind_gusts_10m) : null,
+      windDeg: deg != null ? Math.round(deg) : null,
+      windDir: compass16(deg),
+      validEt: c.time || null,
+    };
+  }
+
+  /** Freshest valid airport ob (KISP, KHWV), else Open-Meteo model, else null. */
+  async function fetchBackupWind() {
+    const obs = await Promise.all(AIRPORTS.map(function (ap) {
+      return fetchAirport(ap).catch(function () { return null; });
+    }));
+    let best = null;
+    obs.forEach(function (o) { if (o && (!best || o.t > best.t)) best = o; });
+    if (best) {
+      best.label = "Measured · " + best.name + " (" + best.station + ") · " +
+        (best.ageMin < 2 ? "just now" : best.ageMin + " min ago");
+      best.note = "land station";
+      best.short = best.station;
+      return best;
+    }
+    try {
+      const m = await fetchModelWind();
+      m.label = "Model estimate · Open-Meteo · not measured";
+      m.short = "model est.";
+      return m;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** If buoy wind is stale, swap in backup wind; air/water/age stay from the buoy. */
+  async function withBackupWind(buoy) {
+    if (!buoyWindStale(buoy)) return buoy;
+    const bw = await fetchBackupWind();
+    if (!bw) return buoy;
+    const b = Object.assign({}, buoy || { name: "GSB Buoy #1", airF: null, waterF: null, ageMin: null });
+    b.buoyWind = buoy ? { windKt: buoy.windKt, gustKt: buoy.gustKt, windDir: buoy.windDir, windDeg: buoy.windDeg, observedEt: buoy.observedEt } : null;
+    b.windKt = bw.windKt;
+    b.gustKt = bw.gustKt;
+    b.windDir = bw.windDir;
+    b.windDeg = bw.windDeg;
+    b.windBackup = bw;
+    return b;
+  }
+
   async function gather() {
     const out = {
       ok: true,
@@ -897,8 +1011,11 @@
     };
 
     await Promise.all([
-      fetchBuoy().then(function (b) { out.buoy = b; }).catch(function (e) {
+      fetchBuoy().catch(function (e) {
         out.errors.push("buoy: " + (e && e.message ? e.message : e));
+        return null;
+      }).then(withBackupWind).then(function (b) { out.buoy = b; }).catch(function (e) {
+        out.errors.push("wind: " + (e && e.message ? e.message : e));
       }),
       fetchMarine().then(function (m) { out.marine = m; }).catch(function (e) {
         out.errors.push("marine: " + (e && e.message ? e.message : e));
@@ -948,6 +1065,8 @@
     parseMarine: parseMarine,
     parseTides: parseTides,
     stoplight: stoplight,
+    fetchBackupWind: fetchBackupWind,
+    buoyWindStale: buoyWindStale,
     driftStoplight: driftStoplight,
     windTideFlow: windTideFlow,
     moonPhase: moonPhase,

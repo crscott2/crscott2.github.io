@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <meta name="theme-color" content="#0b1c33" />
   <meta name="robots" content="noindex" />
-  <meta name="gsb-frame-build" content="1" />
+  <meta name="gsb-frame-build" content="2" />
   <title>GSB Frame</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -126,8 +126,16 @@
     .wind-top { display: flex; align-items: baseline; margin-top: 6px; }
     .wind-gust { font-size: 30px; color: var(--cream); margin-top: 2px; letter-spacing: .02em; }
     .wind-gust b { color: var(--hi); font-weight: 600; font-size: 40px; }
-    .dial-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; }
-    .dial { width: 300px; height: 300px; }
+    .wind-src { font-size: 18px; line-height: 1.3; margin-top: 6px; color: var(--cream2); }
+    .wind-src.airport { color: #9fd3ff; }
+    .wind-src.model { color: #d8b4fe; font-style: italic; }
+    body.night .wind-src.airport { color: #6f8fa8; }
+    body.night .wind-src.model { color: #9a84b3; }
+    #wind.model #wind-mph { color: #e9d5ff; }
+    body.night #wind.model #wind-mph { color: #a993c2; }
+    .dial-wrap { flex: 1 1 0; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; padding: 6px 0; }
+    .dial { height: 100%; max-height: 300px; width: auto; max-width: 300px; display: block; }
+    .dial-wrap { position: relative; }
     .wind-from { text-align: center; font-size: 26px; letter-spacing: .12em; text-transform: uppercase; color: var(--cream2); }
     .wind-from b { color: var(--hi); font-size: 36px; font-weight: 700; letter-spacing: .08em; }
 
@@ -187,9 +195,10 @@
     <div id="alert"></div>
     <main>
       <section class="card" id="wind">
-        <div class="k">Wind · SoMAS buoy</div>
+        <div class="k" id="wind-k">Wind · SoMAS buoy</div>
         <div class="wind-top"><span class="big" id="wind-mph">—</span><span class="unit">mph</span></div>
         <div class="wind-gust">Gusts <b id="gust-mph">—</b> mph <span class="muted" id="wind-kt"></span></div>
+        <div class="wind-src" id="wind-src"></div>
         <div class="dial-wrap"><svg class="dial" id="dial" viewBox="0 0 300 300"></svg></div>
         <div class="wind-from">From <b id="wind-dir">—</b> <span id="wind-deg" class="muted"></span></div>
       </section>

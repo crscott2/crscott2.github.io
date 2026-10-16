@@ -1,4 +1,4 @@
-const CACHE = "gsb-v25";
+const CACHE = "gsb-v26";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(() => self.skipWaiting()));
 });
@@ -23,6 +23,8 @@ self.addEventListener("fetch", (e) => {
     h.endsWith(".cors.sh") ||
     h === "allorigins.win" ||
     h.endsWith(".allorigins.win") ||
+    h === "open-meteo.com" ||
+    h.endsWith(".open-meteo.com") ||
     h === "weather.com" ||
     h.endsWith(".weather.com") ||
     h === "wunderground.com" ||

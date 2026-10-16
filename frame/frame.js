@@ -221,6 +221,11 @@
     $("wind-mph").textContent = mph == null ? "—" : mph;
     $("gust-mph").textContent = gust == null ? "—" : gust;
     $("wind-kt").textContent = num(b.windKt) != null ? "(" + Math.round(b.windKt) + "/" + r0(b.gustKt) + " kt)" : "";
+    var wb = b.windBackup;
+    $("wind").className = "card" + (wb ? " " + wb.kind : "");
+    $("wind-k").textContent = wb ? (wb.kind === "model" ? "Wind · model estimate" : "Wind · " + wb.station + " (buoy stale)") : "Wind · SoMAS buoy";
+    $("wind-src").className = "wind-src" + (wb ? " " + wb.kind : "");
+    $("wind-src").textContent = wb ? wb.label + (wb.note ? " (" + wb.note + ")" : "") : "";
     $("wind-dir").textContent = b.windDir || "—";
     $("wind-deg").textContent = num(b.windDeg) != null ? Math.round(b.windDeg) + "°" : "";
     $("dial").innerHTML = dialSvg(num(b.windDeg), mph);
@@ -242,7 +247,7 @@
     }
 
     // next few hours of sky / rain (Weather Underground hourly, NWS fallback)
-    var hours = ((d.hourly && d.hourly.hours) || []).slice(0, 3);
+    var hours = ((d.hourly && d.hourly.hours) || []).slice(0, (d.alerts || []).length ? 2 : 3);
     $("wx").innerHTML = hours.length ? '<div class="k" style="font-size:15px">Next hours</div>' + hours.map(function (h) {
       var pop = h.precipChance != null && Number(h.precipChance) > 0 ? Math.round(h.precipChance) + "%" : "";
       return '<div class="wx-row"><span>' + esc(hourEt(new Date(h.start))) + "</span><span>" + esc(h.phrase || "—") + "</span><span>" + esc(pop) + "</span></div>";
@@ -265,9 +270,9 @@
       ab.innerHTML = "⚠ " + al.map(function (a) {
         return esc(a.event || "Alert") + (a.window ? '<span class="when">' + esc(a.window) + "</span>" : "");
       }).join(" &nbsp;·&nbsp; ");
-      ab.className = "show";
+      ab.className = "show"; $("inner").className = "has-alert";
     } else {
-      ab.className = ""; ab.innerHTML = "";
+      ab.className = ""; ab.innerHTML = ""; $("inner").className = "";
     }
   }
 
