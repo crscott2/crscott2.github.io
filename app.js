@@ -6,7 +6,7 @@
   const KT_TO_MPH = 1.150779448;
   // Optional Cloudflare Worker (see worker/README.md). Empty = not used.
   // When set, it becomes the first buoy source; buoy.json (Action) stays as backup.
-  const WORKER_URL = "";
+  const WORKER_URL = "https://gsb-buoy.crscott2.workers.dev/";
   const PLACE = "Great South Bay · Patchogue–Sayville";
   const BUOY_URL = "https://po.somas.stonybrook.edu/GSB/B1RT.html";
   // SoMAS B1RT.html sends no Access-Control-Allow-Origin. Order: SoMAS direct,
@@ -687,7 +687,10 @@
       try {
         fromWorker = await getJson(workerUrl);
         if (!fromWorker || !fromWorker.ok || fromWorker.windKt == null) fromWorker = null;
-        else if (obsMs(fromWorker) && Date.now() - obsMs(fromWorker) <= BUOY_STALE_MIN * 60000) return fromWorker;
+        else {
+          if (obsMs(fromWorker)) fromWorker.ageMin = Math.floor((Date.now() - obsMs(fromWorker)) / 60000);
+          if (obsMs(fromWorker) && fromWorker.ageMin <= BUOY_STALE_MIN) return fromWorker;
+        }
       } catch (eW) { fromWorker = null; }
     }
     let snap = null;

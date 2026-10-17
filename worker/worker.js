@@ -134,9 +134,9 @@ export async function buildPayload() {
     fetchedAt: toEtIso(new Date()),
     via: "worker",
   };
-  // Water temp fill from the other feed if it's within 6 h.
+  // Water temp fill from the other feed if its reading is within 6 h of the chosen one.
   if (out.waterF == null && other && other.waterF != null && other.observed &&
-      Date.now() - other.observed.getTime() <= 6 * 3600000) {
+      Math.abs(best.observed.getTime() - other.observed.getTime()) <= 6 * 3600000) {
     out.waterF = other.waterF;
     out.waterAsOf = etClock(other.observed);
   }
