@@ -126,6 +126,7 @@
     .wind-top { display: flex; align-items: baseline; margin-top: 6px; }
     .wind-gust { font-size: 30px; color: var(--cream); margin-top: 2px; letter-spacing: .02em; }
     .wind-gust b { color: var(--hi); font-weight: 600; font-size: 40px; }
+    #gust-none { font-size: 28px; letter-spacing: .03em; color: var(--cream2); }
     .wind-src { font-size: 18px; line-height: 1.3; margin-top: 6px; color: var(--cream2); }
     .wind-src.airport { color: #9fd3ff; }
     .wind-src.model { color: #d8b4fe; font-style: italic; }
@@ -197,7 +198,11 @@
       <section class="card" id="wind">
         <div class="k" id="wind-k">Wind · SoMAS buoy</div>
         <div class="wind-top"><span class="big" id="wind-mph">—</span><span class="unit">mph</span></div>
-        <div class="wind-gust">Gusts <b id="gust-mph">—</b> mph <span class="muted" id="wind-kt"></span></div>
+        <div class="wind-gust" id="wind-gust">
+          <span id="gust-has">Gusts <b id="gust-mph">—</b> mph</span>
+          <span id="gust-none" hidden>no gusts reported</span>
+          <span class="muted" id="wind-kt"></span>
+        </div>
         <div class="wind-src" id="wind-src"></div>
         <div class="dial-wrap"><svg class="dial" id="dial" viewBox="0 0 300 300"></svg></div>
         <div class="wind-from">From <b id="wind-dir">—</b> <span id="wind-deg" class="muted"></span></div>

@@ -227,6 +227,16 @@
     return Number.isNaN(n) ? null : n;
   }
 
+  /** Wind speed → knots. 0 is calm and valid. Null value (often QC "Z") is missing. */
+  function nwsSpeedKt(obj) {
+    const n = nwsVal(obj);
+    if (n == null) return null;
+    const u = String((obj && obj.unitCode) || "").toLowerCase();
+    if (u.indexOf("m_s") >= 0 || u.indexOf("m/s") >= 0) return n * 1.943844492;
+    if (u.indexOf("knot") >= 0 || u.indexOf(":kn") >= 0 || u.indexOf(":kt") >= 0) return n;
+    return n / 1.852; // NWS default wmoUnit:km_h-1
+  }
+
   function parseNws44069(data) {
     const p = (data && data.properties) || {};
     const observed = p.timestamp ? new Date(p.timestamp) : null;
@@ -912,17 +922,15 @@
     return age == null || age > BUOY_STALE_MIN;
   }
 
-  async function fetchAirport(ap) {
-    const data = await getJson("https://api.weather.gov/stations/" + ap.id + "/observations/latest", {
-      headers: { Accept: "application/geo+json" },
-    });
-    const p = (data && data.properties) || {};
+  function airportObs(ap, p) {
+    p = p || {};
     const t = p.timestamp ? Date.parse(p.timestamp) : NaN;
-    const kmh = nwsVal(p.windSpeed);
-    if (Number.isNaN(t) || kmh == null) throw new Error(ap.id + ": no wind");
-    const ageMin = Math.floor((Date.now() - t) / 60000);
-    if (ageMin > BUOY_STALE_MIN) throw new Error(ap.id + ": old (" + ageMin + " min)");
-    const gust = nwsVal(p.windGust);
+    const windKt = nwsSpeedKt(p.windSpeed);
+    if (Number.isNaN(t) || windKt == null) return null;
+    let ageMin = Math.floor((Date.now() - t) / 60000);
+    if (ageMin > BUOY_STALE_MIN) return null;
+    if (ageMin < 0) ageMin = 0;
+    const gustKt = nwsSpeedKt(p.windGust);
     const deg = nwsVal(p.windDirection);
     return {
       kind: "airport",
@@ -930,12 +938,33 @@
       name: ap.name,
       t: t,
       ageMin: ageMin,
-      windKt: kmh / 1.852,
-      gustKt: gust != null ? gust / 1.852 : null,
+      windKt: windKt,
+      gustKt: gustKt,
       windDeg: deg != null ? Math.round(deg) : null,
       windDir: compass16(deg),
       observedEt: formatEtClock(new Date(t)),
     };
+  }
+
+  async function fetchAirport(ap) {
+    const headers = { Accept: "application/geo+json" };
+    const base = "https://api.weather.gov/stations/" + ap.id + "/observations";
+    // /latest is often a partial hour obs with windSpeed null (QC "Z") while the
+    // METAR a few minutes earlier still has a speed. Calm 0 on latest is usable.
+    let obs = null;
+    try {
+      const latest = await getJson(base + "/latest", { headers: headers });
+      obs = airportObs(ap, latest && latest.properties);
+    } catch (eLatest) { obs = null; }
+    if (obs) return obs;
+    const list = await getJson(base + "?limit=3", { headers: headers });
+    const features = (list && list.features) || [];
+    for (let i = 0; i < features.length; i++) {
+      const cand = airportObs(ap, features[i] && features[i].properties);
+      if (cand && (!obs || cand.t > obs.t)) obs = cand;
+    }
+    if (!obs) throw new Error(ap.id + ": no wind");
+    return obs;
   }
 
   async function fetchModelWind() {
@@ -954,25 +983,30 @@
     };
   }
 
-  /** First valid airport ob in priority order (KISP, then KHWV), else Open-Meteo model, else null. */
+  function tagBackup(bw) {
+    if (bw.kind === "model") {
+      bw.label = "Model estimate · Open-Meteo · not measured";
+      bw.short = "model est.";
+      bw.cardLabel = "Wind (backup) · Open-Meteo";
+      return bw;
+    }
+    bw.label = "Measured · " + bw.name + " (" + bw.station + ") · " +
+      (bw.ageMin < 2 ? "just now" : bw.ageMin + " min ago");
+    bw.note = "land station";
+    bw.short = bw.station;
+    bw.cardLabel = "Wind (backup) · " + bw.name + " (" + bw.station + ")";
+    return bw;
+  }
+
+  /** KISP whenever it has a usable reading within 90 min, else KHWV, else Open-Meteo. */
   async function fetchBackupWind() {
-    const obs = await Promise.all(AIRPORTS.map(function (ap) {
-      return fetchAirport(ap).catch(function () { return null; });
-    }));
-    let best = null;
-    obs.forEach(function (o) { if (o && !best) best = o; }); // priority order: KISP first (closest), then KHWV
-    if (best) {
-      best.label = "Measured · " + best.name + " (" + best.station + ") · " +
-        (best.ageMin < 2 ? "just now" : best.ageMin + " min ago");
-      best.note = "land station";
-      best.short = best.station;
-      return best;
+    for (let i = 0; i < AIRPORTS.length; i++) {
+      try {
+        return tagBackup(await fetchAirport(AIRPORTS[i]));
+      } catch (eAp) { /* try the next station */ }
     }
     try {
-      const m = await fetchModelWind();
-      m.label = "Model estimate · Open-Meteo · not measured";
-      m.short = "model est.";
-      return m;
+      return tagBackup(await fetchModelWind());
     } catch (e) {
       return null;
     }

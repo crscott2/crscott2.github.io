@@ -218,12 +218,23 @@
 
     var mph = b.windMph != null ? b.windMph : (num(b.windKt) != null ? Math.round(b.windKt * 1.150779) : null);
     var gust = b.gustMph != null ? b.gustMph : (num(b.gustKt) != null ? Math.round(b.gustKt * 1.150779) : null);
-    $("wind-mph").textContent = mph == null ? "—" : mph;
-    $("gust-mph").textContent = gust == null ? "—" : gust;
-    $("wind-kt").textContent = num(b.windKt) != null ? "(" + Math.round(b.windKt) + "/" + r0(b.gustKt) + " kt)" : "";
     var wb = b.windBackup;
+    var noGust = gust == null && !!wb;
+    $("wind-mph").textContent = mph == null ? "—" : mph;
+    $("gust-mph").textContent = gust == null ? "—" : String(gust);
+    $("gust-has").hidden = noGust;
+    $("gust-none").hidden = !noGust;
+    var ktTxt = "";
+    if (num(b.windKt) != null) {
+      ktTxt = "(" + Math.round(b.windKt);
+      if (num(b.gustKt) != null) ktTxt += "/" + Math.round(b.gustKt);
+      ktTxt += " kt)";
+    }
+    $("wind-kt").textContent = noGust ? "" : ktTxt;
     $("wind").className = "card" + (wb ? " " + wb.kind : "");
-    $("wind-k").textContent = wb ? (wb.kind === "model" ? "Wind · model estimate" : "Wind · " + wb.station + " (buoy stale)") : "Wind · SoMAS buoy";
+    $("wind-k").textContent = wb
+      ? (wb.cardLabel || ("Wind (backup) · " + (wb.name ? wb.name + (wb.station ? " (" + wb.station + ")" : "") : (wb.station || "backup"))))
+      : "Wind · SoMAS buoy";
     $("wind-src").className = "wind-src" + (wb ? " " + wb.kind : "");
     $("wind-src").textContent = wb ? wb.label + (wb.note ? " (" + wb.note + ")" : "") : "";
     $("wind-dir").textContent = b.windDir || "—";

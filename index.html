@@ -229,6 +229,10 @@
     .wind-src.model { color: #d8b4fe; font-style: italic; }
     .card.buoy.wind-model .buoy-speed .big, .card.buoy.wind-model .wind-dir { color: #e9d5ff; }
     .card.buoy.wind-airport .buoy-speed .big { color: #dbeeff; }
+    .buoy-v.gust-none {
+      font-size: 13px; font-weight: 500; letter-spacing: .01em; line-height: 1.2;
+      color: var(--cream2); padding-top: 6px;
+    }
 
     .app-version {
       position: fixed;
@@ -256,7 +260,7 @@
   </header>
   <div id="root">Loading…</div>
   <p class="hint" id="install">On iPhone: Share → Add to Home Screen. Then open it from the icon, not Safari.</p>
-  <div class="app-version" id="app-version">v28</div>
+  <div class="app-version" id="app-version">v29</div>
   <script src="app.js"></script>
   <script>
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=27");
@@ -423,11 +427,16 @@
         const gustMph = b.gustMph != null ? b.gustMph : (b.gustKt != null ? kt(b.gustKt * 1.15078) : null);
         const windMphDisp = b.windMph != null ? b.windMph : kt(b.windKt != null ? b.windKt * 1.15078 : null);
         const wb = b.windBackup;
+        const gustShown = gustMph != null ? String(gustMph) : (wb ? "no gusts reported" : "—");
+        const gustCls = gustMph == null && wb ? "buoy-v gust-none" : "buoy-v";
         const windSrc = wb
           ? `<div class="wind-src ${wb.kind}">Wind: ${esc(wb.label)}${wb.note ? " (" + esc(wb.note) + ")" : ""}${b.buoyWind && b.buoyWind.observedEt ? " · buoy wind is stale" : ""}</div>`
           : "";
+        const windLabel = wb
+          ? (wb.cardLabel || ("Wind (backup) · " + (wb.name ? wb.name + (wb.station ? " (" + wb.station + ")" : "") : (wb.station || "backup"))))
+          : "SoMAS Buoy";
         html += `<div class="card buoy${wb ? " wind-" + wb.kind : ""}">
-          <div class="label">${wb ? "Wind (backup) · SoMAS Buoy" : "SoMAS Buoy"}</div>
+          <div class="label">${esc(windLabel)}</div>
           <div class="buoy-hero">
             <div class="buoy-speed">
               <div class="big">${windMphDisp}</div>
@@ -441,7 +450,7 @@
           <div class="buoy-grid">
             <div class="buoy-cell"><div class="buoy-k">Air</div><div class="buoy-v">${f(b.airF)}°</div></div>
             <div class="buoy-cell"><div class="buoy-k">Water</div><div class="buoy-v">${f(b.waterF)}°</div>${b.waterAsOf ? `<div class="muted">as of ${esc(b.waterAsOf)}</div>` : ""}</div>
-            <div class="buoy-cell"><div class="buoy-k">Gust</div><div class="buoy-v">${gustMph != null ? gustMph : "—"}</div></div>
+            <div class="buoy-cell"><div class="buoy-k">Gust</div><div class="${gustCls}">${esc(gustShown)}</div></div>
           </div>
           <div class="age">
             <div class="muted ${stale ? "stale" : ""}">${stale ? "STALE · " : ""}${wb ? "Air/water: " : ""}${obsLine}</div>
