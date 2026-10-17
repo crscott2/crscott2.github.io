@@ -949,15 +949,16 @@
   async function fetchAirport(ap) {
     const headers = { Accept: "application/geo+json" };
     const base = "https://api.weather.gov/stations/" + ap.id + "/observations";
-    // /latest is often a partial hour obs with windSpeed null (QC "Z") while the
-    // METAR a few minutes earlier still has a speed. Calm 0 on latest is usable.
+    // /latest and the newest list rows are often 5-min partials with windSpeed
+    // null (QC Z). A speed from earlier in the hour can sit several rows down.
+    // 90 min of 5-min slots is 18, so read past a run of nulls. Calm 0 is usable.
     let obs = null;
     try {
       const latest = await getJson(base + "/latest", { headers: headers });
       obs = airportObs(ap, latest && latest.properties);
     } catch (eLatest) { obs = null; }
     if (obs) return obs;
-    const list = await getJson(base + "?limit=3", { headers: headers });
+    const list = await getJson(base + "?limit=20", { headers: headers });
     const features = (list && list.features) || [];
     for (let i = 0; i < features.length; i++) {
       const cand = airportObs(ap, features[i] && features[i].properties);
