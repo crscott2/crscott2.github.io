@@ -954,13 +954,13 @@
     };
   }
 
-  /** Freshest valid airport ob (KISP, KHWV), else Open-Meteo model, else null. */
+  /** First valid airport ob in priority order (KISP, then KHWV), else Open-Meteo model, else null. */
   async function fetchBackupWind() {
     const obs = await Promise.all(AIRPORTS.map(function (ap) {
       return fetchAirport(ap).catch(function () { return null; });
     }));
     let best = null;
-    obs.forEach(function (o) { if (o && (!best || o.t > best.t)) best = o; });
+    obs.forEach(function (o) { if (o && !best) best = o; }); // priority order: KISP first (closest), then KHWV
     if (best) {
       best.label = "Measured · " + best.name + " (" + best.station + ") · " +
         (best.ageMin < 2 ? "just now" : best.ageMin + " min ago");
