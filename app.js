@@ -39,7 +39,7 @@
   const TIDES_BASE =
     "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
     "?product=predictions&application=GSBBay&datum=MLLW&station=8514322" +
-    "&time_zone=lst_ldt&units=english&format=json";
+    "&time_zone=gmt&units=english&format=json";
 
   function pad(n, w) {
     return String(n).padStart(w || 2, "0");
@@ -114,6 +114,17 @@
     return p.y + pad(p.mo) + pad(p.d);
   }
 
+  function yyyymmddUtc(d) {
+    return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate());
+  }
+
+  /** NOAA time_zone=gmt stamps are "YYYY-MM-DD HH:MM" with no offset. */
+  function parseNoaaGmt(tstr) {
+    const m = String(tstr).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return null;
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0));
+  }
+
   function parseNoaaEt(tstr) {
     const m = String(tstr).match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
     if (!m) return null;
@@ -128,7 +139,28 @@
 
   function etMidnight(d) {
     const p = etParts(d);
-    return parseNoaaEt(p.y + "-" + pad(p.mo) + "-" + pad(p.d) + " 00:00");
+    for (let add = 4; add <= 5; add++) {
+      const dt = new Date(Date.UTC(p.y, p.mo - 1, p.d, add, 0, 0));
+      const q = etParts(dt);
+      if (q.y === p.y && q.mo === p.mo && q.d === p.d && q.h === 0 && q.mi === 0) return dt;
+    }
+    return new Date(Date.UTC(p.y, p.mo - 1, p.d, 5, 0, 0));
+  }
+
+  function nextEtMidnight(day0) {
+    return etMidnight(new Date(day0.getTime() + 26 * 3600000));
+  }
+
+  /** Local clock time on day0's calendar date, or null if that clock time does not exist. */
+  function etClockOnDay(day0, hour, minute) {
+    const p = etParts(day0);
+    const mi = minute || 0;
+    for (let add = 4; add <= 5; add++) {
+      const dt = new Date(Date.UTC(p.y, p.mo - 1, p.d, hour + add, mi, 0));
+      const q = etParts(dt);
+      if (q.y === p.y && q.mo === p.mo && q.d === p.d && q.h === hour && q.mi === mi) return dt;
+    }
+    return null;
   }
 
   function moonPhase(when) {
@@ -309,7 +341,7 @@
     const now = new Date();
     const parsed = [];
     for (const p of preds) {
-      const t = parseNoaaEt(p.t);
+      const t = parseNoaaGmt(p.t);
       if (!t) continue;
       parsed.push({ t: t, v: parseFloat(p.v), type: p.type });
     }
@@ -758,24 +790,43 @@
     const now = new Date();
     const start = new Date(now.getTime() - 6 * 3600 * 1000);
     const end = new Date(now.getTime() + 48 * 3600 * 1000);
-    const hiloUrl = TIDES_BASE + "&interval=hilo&begin_date=" + yyyymmddEt(start) + "&end_date=" + yyyymmddEt(end);
+    const hiloUrl = TIDES_BASE + "&interval=hilo&begin_date=" + yyyymmddUtc(start) + "&end_date=" + yyyymmddUtc(end);
     const tides = parseTides(await getJson(hiloUrl));
     const day0 = etMidnight(now);
-    const dayStamp = yyyymmddEt(day0);
-    const curveUrl = TIDES_BASE + "&interval=6&begin_date=" + dayStamp + "&end_date=" + dayStamp;
+    const day1 = nextEtMidnight(day0);
+    // GMT dates that cover this local civil day, including a 23h or 25h DST day.
+    const curveUrl = TIDES_BASE + "&interval=6&begin_date=" + yyyymmddUtc(day0) +
+      "&end_date=" + yyyymmddUtc(new Date(day1.getTime() - 60000));
     try {
       const curveRaw = await getJson(curveUrl);
       const curve = [];
       for (const p of curveRaw.predictions || []) {
-        const t = parseNoaaEt(p.t);
-        if (!t) continue;
-        const mins = Math.floor((t.getTime() - day0.getTime()) / 60000);
+        const t = parseNoaaGmt(p.t);
+        if (!t || t < day0 || t >= day1) continue;
+        const mins = Math.round((t.getTime() - day0.getTime()) / 60000);
         curve.push({ m: mins, v: Math.round(parseFloat(p.v) * 1000) / 1000 });
       }
+      curve.sort(function (a, b) { return a.m - b.m; });
       tides.curve = curve;
       const dp = etParts(day0);
       tides.day = dp.y + "-" + pad(dp.mo) + "-" + pad(dp.d);
-      tides.nowMin = Math.floor((now.getTime() - day0.getTime()) / 60000);
+      tides.dayStart = day0.toISOString();
+      tides.dayMinutes = Math.round((day1.getTime() - day0.getTime()) / 60000);
+      tides.nowMin = Math.round((now.getTime() - day0.getTime()) / 60000);
+      const ticks = [];
+      for (let h = 0; h <= 24; h++) {
+        const dt = h === 24 ? day1 : etClockOnDay(day0, h, 0);
+        if (!dt) continue;
+        const m = Math.round((dt.getTime() - day0.getTime()) / 60000);
+        const short = h === 0 || h === 24 ? "12a" : h === 12 ? "12p" : h < 12 ? h + "a" : (h - 12) + "p";
+        ticks.push({ m: m, label: pad(h % 24) + ":00", short: short });
+      }
+      tides.ticks = ticks;
+      for (let i = 0; i < (tides.extremes || []).length; i++) {
+        const e = tides.extremes[i];
+        const dt = e && e.iso ? new Date(e.iso) : null;
+        if (dt && !Number.isNaN(dt.getTime())) e.m = Math.round((dt.getTime() - day0.getTime()) / 60000);
+      }
     } catch (ce) {
       tides.curve = [];
       tides._curveError = String(ce && ce.message ? ce.message : ce);

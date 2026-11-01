@@ -166,26 +166,29 @@
     var vmin = Math.min.apply(null, vs), vmax = Math.max.apply(null, vs);
     var span = Math.max(0.4, vmax - vmin);
     vmin -= span * 0.08; vmax += span * 0.12;
-    function x(m) { return pad.l + (m / 1440) * (w - pad.l - pad.r); }
+    var spanM = t.dayMinutes || 1440;
+    function x(m) { return pad.l + (m / spanM) * (w - pad.l - pad.r); }
     function y(v) { return pad.t + (1 - (v - vmin) / (vmax - vmin)) * (h - pad.t - pad.b); }
     var d = curve.map(function (p, i) { return (i ? "L" : "M") + x(p.m).toFixed(1) + "," + y(p.v).toFixed(1); }).join(" ");
     var area = d + " L" + x(curve[curve.length - 1].m).toFixed(1) + "," + (h - pad.b) + " L" + x(curve[0].m).toFixed(1) + "," + (h - pad.b) + " Z";
     var s = "";
-    [0, 180, 360, 540, 720, 900, 1080, 1260, 1440].forEach(function (m) {
-      s += '<line x1="' + x(m) + '" x2="' + x(m) + '" y1="' + pad.t + '" y2="' + (h - pad.b) + '" stroke="var(--tide-grid)" stroke-width="1"/>';
-      if (m % 360 === 0) {
-        var lbl = m === 0 || m === 1440 ? "12a" : m === 720 ? "12p" : m < 720 ? (m / 60) + "a" : ((m - 720) / 60) + "p";
-        var anchor = m === 0 ? "start" : m === 1440 ? "end" : "middle";
-        s += '<text x="' + x(m) + '" y="' + (h - 6) + '" text-anchor="' + anchor + '" font-size="17" fill="var(--muted)">' + lbl + "</text>";
+    var ticks = (t.ticks && t.ticks.length) ? t.ticks : [0, 3, 6, 9, 12, 15, 18, 21, 24].map(function (h) {
+      return { m: h * 60, label: (h % 24 < 10 ? "0" : "") + (h % 24) + ":00", short: h === 0 || h === 24 ? "12a" : h === 12 ? "12p" : h < 12 ? h + "a" : (h - 12) + "p" };
+    });
+    ticks.forEach(function (tk) {
+      var hour = tk.m > 0 && tk.label === "00:00" ? 24 : parseInt(tk.label, 10);
+      if (hour % 3 !== 0) return;
+      s += '<line x1="' + x(tk.m) + '" x2="' + x(tk.m) + '" y1="' + pad.t + '" y2="' + (h - pad.b) + '" stroke="var(--tide-grid)" stroke-width="1"/>';
+      if (hour % 6 === 0) {
+        var anchor = tk.m === 0 ? "start" : tk.m === spanM ? "end" : "middle";
+        s += '<text x="' + x(tk.m) + '" y="' + (h - 6) + '" text-anchor="' + anchor + '" font-size="17" fill="var(--muted)">' + tk.short + "</text>";
       }
     });
     s += '<path d="' + area + '" fill="var(--tide-fill)"/>';
     s += '<path d="' + d + '" fill="none" stroke="var(--tide-line)" stroke-width="3.5" stroke-linejoin="round"/>';
     (t.extremes || []).forEach(function (e) {
-      if (!e || !e.iso || !t.day || e.iso.indexOf(t.day) !== 0) return;
-      var pm = e.iso.match(/T(\d{2}):(\d{2})/);
-      if (!pm) return;
-      var m = (+pm[1]) * 60 + (+pm[2]);
+      if (!e || e.m == null || e.m < 0 || e.m > spanM) return;
+      var m = e.m;
       var xx = x(m), yy = y(e.ft);
       var hi = e.type === "High";
       var ty = hi ? yy - 12 : yy + 24;
@@ -195,7 +198,13 @@
       s += '<text x="' + xx.toFixed(1) + '" y="' + ty.toFixed(1) + '" text-anchor="' + anchor + '" font-size="18" font-weight="600" fill="var(--cream)">' +
         (hi ? "H " : "L ") + esc(e.time.replace(/:00 /, " ").replace(" ", "").toLowerCase()) + "</text>";
     });
-    var nowM = minsSinceMidnightEt(new Date());
+    var nowM = t.nowMin || 0;
+    if (t.dayStart) {
+      var ds = Date.parse(t.dayStart);
+      if (!isNaN(ds)) nowM = Math.round((Date.now() - ds) / 60000);
+    }
+    if (nowM < 0) nowM = 0;
+    if (nowM > spanM) nowM = spanM;
     s += '<line x1="' + x(nowM) + '" x2="' + x(nowM) + '" y1="' + (pad.t - 6) + '" y2="' + (h - pad.b) + '" stroke="var(--now)" stroke-width="3" stroke-dasharray="6 5"/>';
     // dot on curve at now
     var best = curve[0];

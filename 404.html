@@ -227,7 +227,8 @@
       let vmin = Math.min(...vs), vmax = Math.max(...vs);
       const span = Math.max(0.4, vmax - vmin);
       vmin -= span * 0.12; vmax += span * 0.18;
-      const x = (m) => pad.l + (m / 1440) * (W - pad.l - pad.r);
+      const spanM = t.dayMinutes || 1440;
+      const x = (m) => pad.l + (m / spanM) * (W - pad.l - pad.r);
       const y = (v) => pad.t + (1 - (v - vmin) / (vmax - vmin)) * (H - pad.t - pad.b);
       const d = curve.map((p, i) => `${i ? "L" : "M"}${x(p.m).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
       const yTicks = [];
@@ -239,23 +240,18 @@
         grid += `<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="#d7c59a" />`;
         grid += `<text x="${pad.l-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#3a2e1a">${v.toFixed(1)}</text>`;
       });
-      [0,240,480,720,960,1200,1440].forEach(m => {
-        const hh = String(Math.floor(m/60)%24).padStart(2,"0");
-        grid += `<line x1="${x(m)}" x2="${x(m)}" y1="${pad.t}" y2="${H-pad.b}" stroke="#ead9b0" />`;
-        grid += `<text x="${x(m)}" y="${H-14}" text-anchor="middle" font-size="11" fill="#3a2e1a">${hh}:00</text>`;
+      const tickSrc = (t.ticks && t.ticks.length) ? t.ticks : [0,4,8,12,16,20,24].map(h => ({ m: h * 60, label: String(h % 24).padStart(2,"0") + ":00" }));
+      tickSrc.forEach(tk => {
+        const hour = tk.m > 0 && tk.label === "00:00" ? 24 : parseInt(tk.label, 10);
+        if (hour % 4 !== 0) return;
+        grid += `<line x1="${x(tk.m)}" x2="${x(tk.m)}" y1="${pad.t}" y2="${H-pad.b}" stroke="#ead9b0" />`;
+        grid += `<text x="${x(tk.m)}" y="${H-14}" text-anchor="middle" font-size="11" fill="#3a2e1a">${tk.label}</text>`;
       });
-      const nowM = Math.max(0, Math.min(1440, t.nowMin ?? 0));
+      const nowM = Math.max(0, Math.min(spanM, t.nowMin ?? 0));
       let extrema = "";
       (t.extremes || []).forEach(e => {
-        if (!e || !e.iso) return;
-        const dt = new Date(e.iso);
-        if (dt.toDateString() !== new Date(t.day + "T12:00:00").toDateString() && t.day) {
-          const day = t.day;
-          if (!e.iso.startsWith(day)) return;
-        }
-        const parts = e.iso.match(/T(\d{2}):(\d{2})/);
-        if (!parts) return;
-        const m = (+parts[1]) * 60 + (+parts[2]);
+        if (!e || e.m == null || e.m < 0 || e.m > spanM) return;
+        const m = e.m;
         extrema += `<rect x="${x(m)-3}" y="${y(e.ft)-3}" width="6" height="6" fill="#1f4e79" />`;
         extrema += `<text x="${x(m)}" y="${y(e.ft)-8}" text-anchor="middle" font-size="13" font-weight="700" fill="#1a1408">${e.ft.toFixed(2)}</text>`;
       });
